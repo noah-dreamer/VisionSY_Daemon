@@ -1,0 +1,60 @@
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# =====================================================================
+# 公网边缘服务器 Nginx —— media.example.com（ResourceSpace 媒体库回源）
+#
+# 链路：CF SaaS 边缘 -> 本 server(:443) -> https://<源站公网 IP>:__GATEWAY_PORT__ (反向代理网关)
+# 大文件（/filestore/ 下载、chunk_upload.php 上传）不经本机透传，
+# 直接 307 重定向到 files.example.com:__GATEWAY_PORT__ 直连学校；307 保留 POST 方法与请求体。
+#
+# 占位符（生产环境从实际网络配置 / 密钥管理服务读取，不提交 Git）：
+#   <ORIGIN_PUBLIC_IP>  学校公网出口 IP（README「源站公网 IP」）
+# 证书：acme.sh + DNS 服务商 DNS API 签发的 *.example.com 泛域名证书
+#       （API 凭据见`<SECRET_MANAGER>`）
+# =====================================================================
+
+# http {} 级别需先 include：
+#   include __NGINX_CONFIG_DIR__/snippets/cloudflare-allowlist.conf;
+
+proxy_cache_path /var/cache/nginx/example levels=1:2
+    keys_zone=rs_cache:64m max_size=10g inactive=7d use_temp_path=off;
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name media.example.com;
+
+    ssl_certificate     __TLS_CERT_DIR__/cert.pem;
+    ssl_certificate_key __TLS_CERT_DIR__/key.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # 仅允许 Cloudflare 回源 IP，其余直接断开连接
+    if ($is_cf = 0) { return 444; }
+
+    client_max_body_size 64m;   # 控制流只承载页面与小文件；大文件已 307 直连
+
+    # ---- 大文件下载：307 直连学校（绕过 边缘服务器 与 CF），无 token 由 反向代理网关 拒绝 ----
+    location /filestore/ {
+        return 307 https://files.example.com:__GATEWAY_PORT__$request_uri;
+    }
+
+    # ---- 分片上传：307 直连学校；307 保证浏览器保留 POST 方法与请求体 ----
+    location /pages/ajax/chunk_upload.php {
+        return 307 https://files.example.com:__GATEWAY_PORT__$request_uri;
+    }
+
+    # ---- 控制流：页面 / 登录 / 鉴权 / 缩略图 ----
+    location / {
+        proxy_pass          https://<ORIGIN_PUBLIC_IP>:__GATEWAY_PORT__;
+        proxy_ssl_verify    off;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+        include __NGINX_CONFIG_DIR__/snippets/cloudflare-real-ip.conf;
+
+        proxy_cache        rs_cache;
+        proxy_cache_valid  200 302 1d;
+        proxy_cache_bypass $cookie_PHPSESSID;
+        proxy_no_cache     $cookie_PHPSESSID;
+    }
+}

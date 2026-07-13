@@ -1,0 +1,19 @@
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# =====================================================================
+# 真实客户端 IP 透传（CF -> 边缘服务器 -> 学校 反向代理网关 -> 业务容器）
+#
+# CF 将真实客户端 IP 放在 CF-Connecting-IP 头；此时 X-Forwarded-For 的
+# 末端是 CF 边缘 IP。必须把 CF-Connecting-IP 透传为 X-Real-IP 与
+# X-Forwarded-For，否则官网的校园 IP 激活判断将失效。
+#
+# 引用：在每个 proxy_pass 的 location {} 内 include 本文件。
+# =====================================================================
+
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $http_cf_connecting_ip;
+proxy_set_header X-Forwarded-For   $http_cf_connecting_ip;
+proxy_set_header X-Forwarded-Proto https;
+proxy_set_header CF-Connecting-IP  $http_cf_connecting_ip;

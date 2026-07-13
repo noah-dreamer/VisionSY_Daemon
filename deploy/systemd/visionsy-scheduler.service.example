@@ -1,0 +1,26 @@
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# <SYSTEMD_UNIT_DIR>/visionsy-scheduler.service
+# VisionSY 调度器：执行 routes/console.php 中的计划任务
+# （每日清理过期 transfer token / OAuth 令牌等）
+[Unit]
+Description=VisionSY scheduler (schedule:work)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/example
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/www/example/storage /var/www/example/bootstrap/cache
+
+[Install]
+WantedBy=multi-user.target

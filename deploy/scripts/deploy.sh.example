@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# =====================================================================
+# VisionSY 官网部署脚本（运行于官网应用容器 / LXC）
+#
+# 安装：cp deploy/scripts/deploy.sh.example /usr/local/sbin/visionsy-deploy
+#       chmod 750 /usr/local/sbin/visionsy-deploy
+# 用法：sudo /usr/local/sbin/visionsy-deploy
+#
+# 前置条件：
+#   - 仓库克隆于 REPO_DIR（Laravel 应用位于 REPO_DIR/web，注意区分：
+#     git 操作在仓库根目录，composer/npm/artisan 操作在 web/ 子目录）
+#   - 生产 .env 位于 SHARED_DIR/.env，并已软链到 web/.env：
+#       ln -sfn /srv/visionsy/shared/.env /srv/visionsy/repo/web/.env
+#   - php >= 8.2、composer 2.x、node >= 20 已安装
+#   - 仓库已提交 package-lock.json（首次请在本机 npm install 后提交）
+# =====================================================================
+set -Eeuo pipefail
+
+REPO_DIR="/srv/visionsy/repo"          # git 仓库根目录
+APP_DIR="${REPO_DIR}/web"              # Laravel 应用目录
+BRANCH="${BRANCH:-main}"
+PHP_BIN="${PHP_BIN:-php}"
+WEB_USER="${WEB_USER:-www-data}"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1/up}"
+
+# --- 并发锁：防止两次部署同时运行 -----------------------------------
+exec 9>/tmp/visionsy-deploy.lock
+if ! flock -n 9; then
+    echo "!! 已有一个 VisionSY 部署正在运行，本次退出"
+    exit 1
+fi
+
+echo "==> [1/9] 拉取最新代码（${BRANCH}）"
+cd "$REPO_DIR"
+git fetch --prune origin "$BRANCH"
+git checkout "$BRANCH"
+git reset --hard "origin/${BRANCH}"
+
+cd "$APP_DIR"
+
+echo "==> [2/9] 确保 Laravel 运行目录存在"
+mkdir -p \
+    storage/app/public \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/testing \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache
+
+echo "==> [3/9] 进入维护模式"
+"$PHP_BIN" artisan down --retry=30 || true
+
+# 后续任何步骤失败也尽量恢复站点
+restore_application() {
+    "$PHP_BIN" artisan up || true
+}
+trap restore_application EXIT
+
+echo "==> [4/9] 安装 PHP 生产依赖"
+composer install \
+    --no-dev \
+    --prefer-dist \
+    --no-interaction \
+    --optimize-autoloader
+
+echo "==> [5/9] 构建前端资源"
+if [[ -f package-lock.json ]]; then
+    npm ci
+else
+    echo "  !! 未找到 package-lock.json，回退为 npm install（请尽快提交 lock 文件）"
+    npm install
+fi
+npm run build
+
+echo "==> [6/9] 数据库迁移"
+"$PHP_BIN" artisan migrate --force
+
+echo "==> [7/9] 重建 Laravel 生产缓存（config/route/view/event）"
+"$PHP_BIN" artisan optimize
+
+echo "==> [8/9] 重载后台服务"
+# 通知长驻队列进程在当前任务结束后退出，由 systemd/Supervisor 拉起新代码
+"$PHP_BIN" artisan queue:restart || true
+systemctl restart visionsy-queue.service visionsy-scheduler.service 2>/dev/null || true
+# php-fpm 部署（推荐）：reload 即可，无需 restart
+systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php-fpm 2>/dev/null || true
+
+echo "==> [9/9] 修复可写目录权限并退出维护模式"
+chown -R "${WEB_USER}:${WEB_USER}" storage bootstrap/cache
+chmod -R ug+rwX storage bootstrap/cache
+
+"$PHP_BIN" artisan up
+trap - EXIT
+
+echo "==> 健康检查：${HEALTH_URL}"
+if curl --fail --silent --show-error --max-time 10 "$HEALTH_URL" >/dev/null; then
+    echo "==> VisionSY 部署完成：$(date '+%F %T')"
+else
+    echo "!! 健康检查未通过，请立即排查（应用已退出维护模式）"
+    exit 1
+fi

@@ -1,0 +1,28 @@
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# <SYSTEMD_UNIT_DIR>/visionsy-site.service
+# VisionSY 官网应用（运行于官网 应用容器 10.0.0.10）
+# 生产建议：Nginx + PHP-FPM 承载，本单元用于 octane/内建服务器不可用时的
+# 最简部署（php-fpm 方案则无需本单元，仅保留 queue 与 scheduler）。
+[Unit]
+Description=VisionSY site (Laravel HTTP server)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/example
+# .env 中的真实密钥来自`<SECRET_MANAGER>`，部署时手工写入服务器
+ExecStart=/usr/bin/php artisan serve --host=0.0.0.0 --port=80
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/www/example/storage /var/www/example/bootstrap/cache
+
+[Install]
+WantedBy=multi-user.target

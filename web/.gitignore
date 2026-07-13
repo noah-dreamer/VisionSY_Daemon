@@ -1,0 +1,35 @@
+# ============================================================
+# Laravel 官网应用 .gitignore
+# 放置位置： VisionSY/web/.gitignore
+# 作用：Laravel 12 标准忽略项。OS / 编辑器垃圾已由根目录
+#       VisionSY/.gitignore 统一处理，这里只管 Laravel 自身。
+# ============================================================
+
+/.phpunit.cache
+/bootstrap/ssr
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+
+# 环境配置（真实值走密钥管理服务；本地用 .env，由 .env.example 复制）
+.env
+.env.backup
+.env.production
+
+# 测试 / 工具缓存
+.phpunit.result.cache
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# 依赖锁残留 / 日志
+auth.json
+npm-debug.log
+yarn-error.log
+

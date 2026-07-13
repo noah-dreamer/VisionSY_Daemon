@@ -1,0 +1,888 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   VisionSY 设计系统
+   设计语言：克制、科技感、校园影像、干净、可信、有空间感。
+   所有色彩 / 圆角 / 阴影 token 统一在此声明，页面通过组件类与工具类引用。
+   ========================================================================== */
+
+@layer base {
+    :root {
+        /* 表面 */
+        --surface-page: 248 249 251;   /* 暖白纸面（亮色） */
+        --surface-card: 255 255 255;
+        --surface-ink: 12 15 26;       /* 深色面 */
+
+        /* 文本 */
+        --text-strong: 26 30 43;
+        --text-body: 61 67 86;
+        --text-muted: 100 110 133;
+
+        /* 线条 */
+        --line: 220 224 232;
+        --line-strong: 185 192 207;
+
+        /* 品牌 */
+        --brand: 31 89 230;
+        --accent: 124 92 255;
+    }
+
+    html {
+        @apply antialiased scroll-smooth;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    body {
+        @apply bg-ink-50 font-sans text-ink-900;
+        font-feature-settings: 'cv11', 'ss01';
+    }
+
+    ::selection {
+        @apply bg-brand-500/20 text-brand-900;
+    }
+
+    [x-cloak] { display: none !important; }
+
+    /* 统一焦点态：清晰但不刺眼 */
+    :focus-visible {
+        @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-white;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *, ::before, ::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+@layer components {
+
+    /* ---------- 容器 ---------- */
+    .shell {
+        @apply mx-auto w-full max-w-shell px-5 sm:px-8;
+    }
+
+    /* ---------- 排版层级 ---------- */
+    .eyebrow {
+        @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-600;
+    }
+    .eyebrow-light {
+        @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-300;
+    }
+    .h-hero {
+        @apply font-display text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl;
+        text-wrap: balance;
+    }
+    .h-page {
+        @apply font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl;
+        text-wrap: balance;
+    }
+    .h-section {
+        @apply font-display text-2xl font-semibold leading-snug tracking-tight sm:text-[2rem];
+        text-wrap: balance;
+    }
+    .h-card {
+        @apply text-base font-semibold tracking-tight text-ink-900;
+    }
+    .lead {
+        @apply text-base leading-relaxed text-ink-600 sm:text-lg;
+    }
+    .prose-muted {
+        @apply text-sm leading-relaxed text-ink-600;
+    }
+    .text-gradient {
+        @apply bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 bg-clip-text text-transparent;
+    }
+
+/* ---------- 按钮 ---------- */
+.btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-2xl
+           px-5 py-2.5 text-sm font-medium transition duration-200 ease-out
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60
+           focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-sm { @apply rounded-xl px-3.5 py-2 text-xs; }
+.btn-primary {
+    @apply btn bg-brand-600 text-white shadow-soft
+           hover:-translate-y-px hover:bg-brand-700 hover:shadow-lg active:translate-y-0 active:bg-brand-800;
+}
+.btn-secondary {
+    @apply btn border border-ink-200 bg-white text-ink-800 shadow-sm
+           hover:-translate-y-px hover:border-ink-300 hover:bg-ink-50 hover:shadow-soft active:translate-y-0;
+}
+.btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900;
+}
+.btn-danger {
+    @apply btn border border-red-200 bg-white text-red-600
+           hover:border-red-300 hover:bg-red-50 active:bg-red-100;
+}
+/* ---------- 液态玻璃交互基线（任务5）----------
+   统一液态玻璃系按钮的 hover/active 位移手感：hover 上浮 -1.5px（在原 -1px/-2px 之间取克制中间值），
+   active 回落到 0。5 个液态玻璃系按钮（.btn-on-dark .btn-light .btn-glass-capsule）的 hover transform 统一为 translateY(-1.5px)；
+   导航栏胶囊（.capsule-bar-btn-dark / -filled）已改为 Apple 式 hover 提亮 + active 缩放，不参与上浮。
+   明确不触碰 .btn-primary/.btn-secondary/.btn-ghost/.btn-danger（architecture.md 第 0 节范围澄清）。 */
+.glass-interactive-base {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.25s ease,
+                box-shadow 0.25s ease,
+                color 0.2s ease;
+}
+.glass-interactive-base:hover { transform: translateY(-1.5px); }
+.glass-interactive-base:active { transform: translateY(0); }
+
+/* 深色面上的按钮 */
+.btn-on-dark {
+    @apply btn border border-white/15 bg-white/10 text-white backdrop-blur-md
+           hover:border-white/25 hover:bg-white/15 hover:backdrop-blur-lg;
+    /* 任务5：hover 位移统一为 -1.5px */
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.25s ease,
+                box-shadow 0.25s ease,
+                border-color 0.25s ease;
+}
+.btn-on-dark:hover { transform: translateY(-1.5px); }
+.btn-on-dark:active { transform: translateY(0); }
+.btn-light {
+    @apply btn bg-white text-ink-900 shadow-soft
+           hover:bg-ink-50 hover:shadow-lg;
+    /* 任务5：hover 位移统一为 -1.5px */
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.25s ease,
+                box-shadow 0.25s ease;
+}
+.btn-light:hover { transform: translateY(-1.5px); }
+.btn-light:active { transform: translateY(0); }
+
+/* ---------- 卡片 ---------- */
+.card {
+    @apply rounded-3xl border border-ink-100 bg-white shadow-sm;
+}
+.card-hover {
+    @apply transition duration-300 ease-out hover:-translate-y-1 hover:border-ink-200 hover:shadow-soft;
+}
+.card-quiet {
+    @apply rounded-3xl border border-ink-100 bg-ink-50/60;
+}
+
+/* 玻璃 / 深色面卡片 */
+.glass-dark {
+    @apply rounded-3xl border border-white/10 bg-white/[0.06] shadow-inner-line backdrop-blur-xl;
+}
+
+/* ---------- 表单 ---------- */
+.form-label {
+    @apply mb-1.5 block text-sm font-medium text-ink-800;
+}
+.form-input {
+    @apply block w-full rounded-2xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-900
+           shadow-[inset_0_2px_4px_rgb(12_15_26/0.03)] transition duration-200
+           placeholder:text-ink-400 hover:border-ink-300
+           focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25
+           disabled:cursor-not-allowed disabled:bg-ink-100;
+}
+textarea.form-input { @apply leading-relaxed; }
+.form-hint { @apply mt-1.5 text-xs text-ink-400; }
+.form-error { @apply mt-1.5 text-sm text-red-600; }
+.form-checkbox {
+    @apply h-5 w-5 rounded-xl border-ink-300 text-brand-600 transition
+           focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-0;
+}
+
+    /* ---------- 徽章 ---------- */
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    }
+    .badge-green { @apply badge bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20; }
+    .badge-amber { @apply badge bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20; }
+    .badge-red   { @apply badge bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20; }
+    .badge-gray  { @apply badge bg-ink-100 text-ink-600 ring-1 ring-inset ring-ink-300/40; }
+    .badge-blue  { @apply badge bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-600/20; }
+    .badge-dot::before {
+        content: '';
+        @apply h-1.5 w-1.5 rounded-full bg-current opacity-70;
+    }
+
+    /* ---------- 提示条 ---------- */
+    .alert {
+        @apply flex gap-3 rounded-xl border px-4 py-3 text-sm;
+    }
+    .alert-success { @apply alert border-emerald-200 bg-emerald-50 text-emerald-800; }
+    .alert-error   { @apply alert border-red-200 bg-red-50 text-red-800; }
+    .alert-info    { @apply alert border-brand-200 bg-brand-50 text-brand-900; }
+    .alert-warning { @apply alert border-amber-200 bg-amber-50 text-amber-900; }
+
+    /* ---------- 表格 ---------- */
+    .table-head {
+        @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-500;
+    }
+    .table-cell { @apply px-4 py-3.5 text-sm text-ink-800; }
+
+    /* ---------- 品牌标识 ---------- */
+    .brand-mark {
+        @apply flex items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700
+               font-bold text-white shadow-glow;
+    }
+}
+
+@layer utilities {
+    /* 极细的网格 / 噪点背景，用于深色 Hero */
+    .bg-grid-dark {
+        background-image:
+            linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+            linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+        background-size: 56px 56px;
+    }
+    .mask-fade-b {
+        -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+        mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+    }
+    .mask-fade-x {
+        -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+        mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    }
+}
+
+/* ==========================================================================
+   交互系统 —— 取景器语汇 + 滚动 / 指针互动
+   由 resources/js/app.js 中的 initReveal / initPointerFX 等驱动。
+   所有效果均尊重 prefers-reduced-motion，并只在 html.js 下隐藏初始状态，
+   保证无 JS 环境内容照常可读。
+   ========================================================================== */
+
+@layer components {
+
+    /* ---------- 元数据标注（EXIF / 场记板式的小字） ---------- */
+    .meta-label {
+        @apply inline-flex items-center gap-2 font-meta text-[11px] font-medium uppercase tracking-[0.22em] text-ink-500;
+    }
+    .meta-label-light {
+        @apply inline-flex items-center gap-2 font-meta text-[11px] font-medium uppercase tracking-[0.22em] text-white/55;
+    }
+    .meta-label::before,
+    .meta-label-light::before {
+        content: '';
+        @apply h-px w-6 bg-current opacity-60;
+    }
+
+    /* REC 录制点 —— 信号红，极小面积 */
+    .rec-dot {
+        @apply inline-block h-1.5 w-1.5 rounded-full bg-signal-500;
+    }
+
+    /* ---------- 取景器四角 ---------- */
+    .vf-corners { position: relative; }
+    .vf-corners::before,
+    .vf-corners::after,
+    .vf-corners > .vf-b::before,
+    .vf-corners > .vf-b::after {
+        content: '';
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border: 1.5px solid rgb(255 255 255 / 0.35);
+        pointer-events: none;
+    }
+    .vf-corners::before      { top: 0;    left: 0;  border-right: 0; border-bottom: 0; }
+    .vf-corners::after       { top: 0;    right: 0; border-left: 0;  border-bottom: 0; }
+    .vf-corners > .vf-b::before { bottom: 0; left: 0;  border-right: 0; border-top: 0; }
+    .vf-corners > .vf-b::after  { bottom: 0; right: 0; border-left: 0;  border-top: 0; }
+
+    /* ---------- 跑马灯字幕条 ---------- */
+    .marquee {
+        @apply overflow-hidden whitespace-nowrap;
+    }
+    .marquee-track {
+        @apply flex w-max items-center gap-10 animate-marquee;
+        will-change: transform;
+    }
+    .marquee:hover .marquee-track { animation-play-state: paused; }
+
+    /* ---------- 指针聚光卡片 ----------
+       JS 会把指针坐标写入 --sx / --sy（百分比） */
+    .card-spot { @apply relative overflow-hidden; }
+    .card-spot::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.35s ease;
+        pointer-events: none;
+        background: radial-gradient(
+            300px circle at var(--sx, 50%) var(--sy, 50%),
+            rgb(53 118 245 / 0.09),
+            transparent 65%
+        );
+    }
+    .card-spot:hover::before { opacity: 1; }
+    .card-spot-dark::before {
+        background: radial-gradient(
+            320px circle at var(--sx, 50%) var(--sy, 50%),
+            rgb(255 255 255 / 0.10),
+            transparent 65%
+        );
+    }
+
+    /* ---------- 能力索引行（代替均等四卡） ---------- */
+    .index-row {
+        @apply relative grid gap-4 border-t border-ink-200/80 py-7 transition-colors duration-300
+               sm:grid-cols-[5rem_1fr] sm:items-baseline sm:gap-8;
+    }
+    .index-row:last-child { @apply border-b border-ink-200/80; }
+    /* 任务4：删除原 .index-row:hover { @apply bg-white; }（整行不透明刷白，遮住背景且与全站聚光语言不一致）。
+       现让模板已具备的 .card-spot 径向聚光（::before radial-gradient）自然生效，
+       仅保留轻量的 border-top 色彩强调呼应品牌蓝聚光，避免"生硬刷白"。 */
+    .index-row { transition: border-color 0.3s ease; }
+    .index-row:hover { border-top-color: rgb(142 188 255 / 0.45); }
+}
+
+/* ---------- 滚动显现（reveal） ---------- */
+html.js [data-reveal] {
+    opacity: 0;
+    transform: translateY(20px);
+    transition:
+        opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+}
+html.js [data-reveal].is-revealed {
+    opacity: 1;
+    transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    html.js [data-reveal] {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
+/* ---------- 指针视差（hero） ---------- */
+[data-parallax] {
+    will-change: transform;
+    transition: transform 0.25s ease-out;
+}
+
+/* ---------- 深色面跟随光斑：柔和的环境光晕 ----------
+   双层径向（亮核 + 弥散环境光）+ 较强模糊，避免生硬亮斑。
+   --gx / --gy 由 app.js 写入指针坐标。 */
+.glow-scene { position: relative; }
+.glow-scene .glow-layer {
+    position: absolute;
+    inset: -10%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    background:
+        radial-gradient(22rem circle at var(--gx, 50%) var(--gy, 40%),
+            rgba(196, 212, 255, 0.14),
+            transparent 60%),
+        radial-gradient(52rem circle at var(--gx, 50%) var(--gy, 40%),
+            rgba(150, 172, 255, 0.07),
+            transparent 68%);
+    filter: blur(18px);
+}
+.glow-scene:hover .glow-layer,
+.glow-scene.is-glowing .glow-layer { opacity: 1; }
+
+/* ---------- 顶部阅读进度条 ---------- */
+#scroll-progress {
+    transform: scaleX(var(--scroll-progress, 0));
+    transform-origin: left center;
+}
+
+/* ==========================================================================
+   Liquid Glass —— 液态玻璃
+   改进的折射效果，多层高光 + 背景模糊 + 指针流光（--sx/--sy 由 app.js 写入）。
+   借鉴苹果的玻璃设计语言，增强真实感和通透感。
+   两个变体：深色面上的 .liquid-glass，浅色面上的 .liquid-glass-light。
+   不支持 backdrop-filter 的浏览器自动回退为半实底色，保证可读。
+   ========================================================================== */
+
+.liquid-glass,
+.liquid-glass-light {
+    position: relative;
+    isolation: isolate;
+    /* 强背景模糊 + 饱和度提升，产生磨砂玻璃的朦胧折射感 */
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    backdrop-filter: blur(32px) saturate(180%);
+    border-radius: 24px;
+    transition: box-shadow 0.4s ease, background-color 0.4s ease;
+}
+
+/* 深色面（影像之上）：半透明白色玻璃 + 顶部高光 + 底部阴影，营造悬浮胶囊条效果 */
+.liquid-glass {
+    background:
+        linear-gradient(180deg,
+            rgba(255, 255, 255, 0.14) 0%,
+            rgba(255, 255, 255, 0.06) 35%,
+            rgba(255, 255, 255, 0.10) 100%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.48),   /* 顶部镜面高光 */
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.04),  /* 底部微妙内描边 */
+        0 16px 36px -12px rgba(0, 0, 0, 0.48),       /* 主投影 */
+        0 1px 4px -2px rgba(0, 0, 0, 0.28);          /* 近投影 */
+}
+
+/* 浅色面（纸白页面之上）：更高不透明度的灰白色玻璃 + 强高光边 + 悬浮投影 */
+.liquid-glass-light {
+    background:
+        linear-gradient(180deg,
+            rgba(255, 255, 255, 0.82) 0%,
+            rgba(255, 255, 255, 0.55) 38%,
+            rgba(255, 255, 255, 0.68) 100%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.98),   /* 顶部镜面高光 */
+        inset 0 -1px 0 0 rgba(12, 15, 26, 0.06),     /* 底部内阴影 */
+        0 14px 32px -10px rgba(12, 15, 26, 0.22),    /* 主投影 */
+        0 1px 3px -1px rgba(12, 15, 26, 0.12);       /* 近投影 */
+}
+
+/* 指针镜面流光：大半径、柔和衰减，模拟玻璃表面随指针游移的细腻高光 */
+.liquid-glass::after,
+.liquid-glass-light::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 1;
+}
+.liquid-glass::after {
+    background: radial-gradient(28rem circle at var(--sx, 50%) var(--sy, 0%),
+        rgba(255, 255, 255, 0.18),
+        rgba(255, 255, 255, 0.05) 30%,
+        transparent 60%);
+}
+.liquid-glass-light::after {
+    background: radial-gradient(28rem circle at var(--sx, 50%) var(--sy, 0%),
+        rgba(255, 255, 255, 0.52),
+        rgba(190, 215, 255, 0.14) 30%,
+        transparent 60%);
+}
+.liquid-glass:hover::after,
+.liquid-glass-light:hover::after { opacity: 1; }
+
+/* 玻璃边缘的微弱外发光，配合顶部内高光形成完整的玻璃体积感 */
+.liquid-glass::before,
+.liquid-glass-light::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.28),
+        rgba(255, 255, 255, 0.04) 30%,
+        rgba(255, 255, 255, 0.02) 50%,
+        rgba(255, 255, 255, 0.12) 70%,
+        rgba(255, 255, 255, 0.22));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+}
+.liquid-glass-light::before {
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.58),
+        rgba(255, 255, 255, 0.12) 30%,
+        rgba(12, 15, 26, 0.03) 50%,
+        rgba(255, 255, 255, 0.22) 70%,
+        rgba(255, 255, 255, 0.45));
+}
+
+/* 回退：不支持 backdrop-filter 时给足底色，保证可读 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .liquid-glass { background: rgba(12, 15, 26, 0.82); }
+    .liquid-glass-light { background: rgba(255, 255, 255, 0.94); }
+}
+
+/* ---------- 深色液态玻璃（Dark Liquid Glass · Apple Liquid Glass 复刻） ----------
+   对照 macOS 控制中心真实材质重写（UI 走查截图对比结论）：
+   1. 填充是均匀的一层，没有可见的纵向渐变分层；
+   2. 无噪点颗粒 —— Apple 玻璃是干净的光学材质，不是磨砂雾面（原 --glass-grain 已删除）；
+   3. 体积感来自一圈镜面 rim 高光（上边最亮、下边次亮、两侧最弱），而不是粗黑投影；
+   4. 投影极柔和、低透明度，仅用于把玻璃从背景上轻轻托起。 */
+.liquid-glass-dark {
+    position: relative;
+    isolation: isolate;
+    /* 导航栏文字配色变量。默认深色玻璃 + 白字；
+       nav-tone-light 下由 .nav-bar.liquid-glass-dark 覆盖为深色文字。 */
+    --nav-fg: rgba(255, 255, 255, 0.92);
+    --nav-fg-muted: rgba(255, 255, 255, 0.55);
+    /* 均匀半透明填充 + 轻微提亮背后内容（Apple 深色玻璃会略微 brighten 背景）。
+       模糊半径从 24px 大幅下调：Apple 玻璃背后的内容保留明暗结构，不是糊成一片的高斯雾
+       （无折射滤镜的浏览器走这条回退，16px 是"可辨轮廓/读不出字"的折中）。 */
+    /* 双层填充：白色玻璃层下垫一层极淡烟熏灰（Apple 玻璃本体自带的中性微色调）——
+       深色背景下几乎不可察觉，但让材质在任何背景下都不是"纯白雾"。 */
+    background-color: rgba(255, 255, 255, 0.13);
+    background-image: linear-gradient(rgba(22, 26, 38, 0.06), rgba(22, 26, 38, 0.06));
+    -webkit-backdrop-filter: blur(16px) saturate(170%) brightness(1.08);
+    backdrop-filter: blur(16px) saturate(170%) brightness(1.08);
+    border-radius: 24px;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.22),
+        0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: background-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+
+/* 折射（边缘透镜）。app.js 按导航条实际尺寸用圆角矩形 SDF 实时生成位移贴图
+   （参照 shuding/liquid-glass 与 kube.io 的 Apple Liquid Glass 复刻方案），
+   注入 #liquid-lens 滤镜后才给 <html> 加 .supports-refraction（Chromium 系）。
+   关键：折射态几乎不做高斯模糊（3px 仅用于抹平位移采样的像素颗粒），
+   清晰的背景内容被边缘透镜真实地弯折、中心区域轻微放大 —— 这才是"折射"而非"糊"；
+   通透感由 saturate/brightness/contrast 提供。不支持的浏览器停留在上面的毛玻璃回退。 */
+.supports-refraction .nav-bar.liquid-glass-dark {
+    -webkit-backdrop-filter: url(#liquid-lens) blur(4px) saturate(160%) brightness(1.10) contrast(1.05);
+    backdrop-filter: url(#liquid-lens) blur(4px) saturate(160%) brightness(1.10) contrast(1.05);
+}
+
+/* 白底 section 背后的导航栏（.nav-tone-light 由 app.js 写入 header）。
+   关键修正：Apple 玻璃在纯白背景上呈“烟熏”态 —— 比页面略暗一点点的中性灰半透层，
+   而不是比白更白的实心白块（对照控制中心左半白底部分）；
+   边缘由更亮的白色 rim 定义，投影降到几乎不可见的弥散级别。
+   加大熏色：原 rgba(28,32,44,0.05) + brightness(0.965) 在白底上几乎与背景同色，
+   边界与内容分隔不明显；上调为 rgba(28,32,44,0.10) + brightness(0.94)，
+   让玻璃本体比白底暗约 6~7%，层次立得起来，rim 高光也才有东西可"提"。 */
+.nav-tone-light .nav-bar.liquid-glass-dark {
+    --nav-fg: rgb(26 30 43);           /* ink-900 */
+    --nav-fg-muted: rgb(100 110 133);  /* ink-500 */
+    background-color: rgba(28, 32, 44, 0.10);
+    background-image: none;
+    -webkit-backdrop-filter: blur(16px) saturate(170%) brightness(0.94);
+    backdrop-filter: blur(16px) saturate(170%) brightness(0.94);
+    box-shadow:
+        0 0 0 1px rgba(28, 32, 44, 0.08),
+        0 16px 40px rgba(18, 22, 35, 0.18),
+        0 2px 8px rgba(18, 22, 35, 0.10);
+}
+.supports-refraction .nav-tone-light .nav-bar.liquid-glass-dark {
+    -webkit-backdrop-filter: url(#liquid-lens) blur(3px) saturate(175%) brightness(0.94) contrast(1.06);
+    backdrop-filter: url(#liquid-lens) blur(3px) saturate(175%) brightness(0.94) contrast(1.06);
+}
+
+
+/* 回退：不支持 backdrop-filter 时给足底色，保证可读 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .liquid-glass-dark { background: rgba(12, 15, 26, 0.86); }
+    .nav-tone-light .nav-bar.liquid-glass-dark { background: rgba(244, 245, 248, 0.92); }
+}
+
+/* ---------- 导航栏玻璃胶囊按钮（Apple 风格） ----------
+   对照控制中心按钮重写：均匀半透明填充 + 1px 内嵌 hairline，按钮本身不再带
+   backdrop-filter、渐变、rim 伪元素与投影（玻璃感由外层导航条统一提供，
+   叠加多层玻璃会互相打架产生“塑料感”）。交互手感也改为 Apple 式：
+   hover 仅提亮填充，按下轻微缩放，不做 translateY 上浮。
+   文字颜色跟随 --nav-fg，天然接入 nav-tone 深浅自适应。 */
+.capsule-bar-btn-dark {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--nav-fg, rgba(255, 255, 255, 0.92));
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.capsule-bar-btn-dark:hover { background: rgba(255, 255, 255, 0.22); }
+.capsule-bar-btn-dark:active { transform: scale(0.96); }
+
+/* 浅色导航栏态：烟熏灰胶囊 + 深字（与外层烟熏玻璃同一材质语言） */
+.nav-tone-light .nav-bar .capsule-bar-btn-dark {
+    background: rgba(28, 32, 44, 0.06);
+    box-shadow:
+        inset 0 0 0 1px rgba(28, 32, 44, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.nav-tone-light .nav-bar .capsule-bar-btn-dark:hover { background: rgba(28, 32, 44, 0.10); }
+
+/* ---------- 导航栏主操作胶囊（实心白 · Apple 选中态） ----------
+   对照控制中心“选中/高亮”的纯白按钮：实心白 + 极浅贴地投影，无渐变无 rim。 */
+.capsule-bar-btn-dark-filled {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0c0f1a;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+    transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.capsule-bar-btn-dark-filled:hover {
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.20);
+}
+.capsule-bar-btn-dark-filled:active { transform: scale(0.96); }
+
+/* 浅色导航栏态：白底胶囊在烟熏玻璃上补一条 hairline，保证边界清晰 */
+.nav-tone-light .nav-bar .capsule-bar-btn-dark-filled {
+    box-shadow:
+        0 1px 3px rgba(18, 22, 35, 0.12),
+        inset 0 0 0 1px rgba(28, 32, 44, 0.08);
+}
+.nav-tone-light .nav-bar .capsule-bar-btn-dark-filled:hover {
+    box-shadow:
+        0 2px 6px rgba(18, 22, 35, 0.16),
+        inset 0 0 0 1px rgba(28, 32, 44, 0.10);
+}
+
+/* ---------- 主操作液态玻璃胶囊按钮（Primary Dark Glass Capsule Button） ----------
+   用于页面主要操作按钮（邮箱注册、登录等）。深色高透明度背景 + 强边缘高光。 */
+.btn-glass-capsule {
+    position: relative;
+    isolation: isolate;
+    padding: 10px 18px;
+    border-radius: 26px;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.18) 0%,
+        rgba(255, 255, 255, 0.06) 40%,
+        rgba(255, 255, 255, 0.12) 100%);
+    -webkit-backdrop-filter: blur(24px) saturate(165%);
+    backdrop-filter: blur(24px) saturate(165%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.52),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.06),
+        0 12px 28px -10px rgba(0, 0, 0, 0.52),
+        0 2px 6px -2px rgba(0, 0, 0, 0.32);
+}
+.btn-glass-capsule::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.42),
+        rgba(255, 255, 255, 0.08) 28%,
+        rgba(255, 255, 255, 0.03) 50%,
+        rgba(255, 255, 255, 0.18) 72%,
+        rgba(255, 255, 255, 0.32));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+}
+.btn-glass-capsule:hover {
+    color: rgba(255, 255, 255, 1);
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.24) 0%,
+        rgba(255, 255, 255, 0.08) 40%,
+        rgba(255, 255, 255, 0.16) 100%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.58),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.08),
+        0 16px 36px -12px rgba(0, 0, 0, 0.60),
+        0 3px 8px -2px rgba(0, 0, 0, 0.42);
+    /* 任务5：hover 位移统一为 -1.5px（原 -2px）。
+       注：带 data-magnetic 的按钮在指针进入后由 app.js 接管 inline transform，此 CSS 值为其回退基线。 */
+    transform: translateY(-1.5px);
+}
+.btn-glass-capsule:active { transform: translateY(0); }
+.btn-glass-capsule:hover::before {
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.52),
+        rgba(255, 255, 255, 0.12) 28%,
+        rgba(255, 255, 255, 0.04) 50%,
+        rgba(255, 255, 255, 0.24) 72%,
+        rgba(255, 255, 255, 0.40));
+}
+
+/* 大号玻璃胶囊按钮：首屏唯一主 CTA「现在开始」使用，比默认尺寸更醒目、更有分量。
+   仍复用 .btn-glass-capsule 的玻璃质感与 hover 位移基线，配合 data-magnetic 的鼠标跟随效果。 */
+.btn-glass-capsule-lg {
+    padding: 14px 32px;
+    font-size: 15px;
+    border-radius: 30px;
+}
+
+/* ---------- 收尾 CTA 玻璃面板语汇（任务5/7）---------- */
+
+/* glass-panel-frame：为收尾 CTA 的"分层底板"（深色圆角面板）补充与 .liquid-glass 系同源的
+   渐变描边 + 顶部内高光影语汇，使其与液态玻璃系统在视觉语言上统一。
+   不含 backdrop-filter（面板本身承载背景图，不需要也不应模糊背景）。 */
+.glass-panel-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.30),
+        rgba(255, 255, 255, 0.04) 28%,
+        rgba(255, 255, 255, 0.01) 50%,
+        rgba(255, 255, 255, 0.10) 72%,
+        rgba(255, 255, 255, 0.18));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+}
+.glass-panel-frame {
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.10),
+        0 30px 70px -28px rgba(0, 0, 0, 0.55);
+}
+
+/* glass-cta-bg：承载 background.png 的图层。原图整体发白且四角有椭圆羽化边界，
+   这里在渲染前整体调暗+提高对比（brightness/contrast），并配合容器 -inset-[6%] 放大裁掉羽化边缘，
+   避免直接铺上去形成"圆形白色贴纸"既视感（architecture.md 6.2 主选方案）。 */
+.glass-cta-bg {
+    filter: brightness(0.5) contrast(1.18) saturate(0.95);
+    transform: scale(1.04);
+    will-change: transform, filter;
+}
+
+/* ---------- 胶囊条（Capsule Bar）—— Apple Music 播放条 / iOS 灵动岛风格 ----------
+   长条形胶囊控件，高度约 40-50px，圆角为高度的一半，形成跑道形。
+   用于导航栏、播放控制栏等细长悬浮条。 */
+.capsule-bar {
+    height: 44px;
+    border-radius: 22px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    isolation: isolate;
+    /* 强背景模糊，产生磨砂玻璃效果 */
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    backdrop-filter: blur(32px) saturate(180%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.92),
+        inset 0 -1px 0 0 rgba(12, 15, 26, 0.04),
+        0 16px 36px -12px rgba(0, 0, 0, 0.42),
+        0 1px 3px -1px rgba(0, 0, 0, 0.24);
+}
+.capsule-bar-dark {
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.12) 0%,
+        rgba(255, 255, 255, 0.04) 38%,
+        rgba(255, 255, 255, 0.08) 100%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.46),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.03),
+        0 16px 36px -12px rgba(0, 0, 0, 0.42),
+        0 1px 3px -1px rgba(0, 0, 0, 0.24);
+}
+.capsule-bar-light {
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.86) 0%,
+        rgba(255, 255, 255, 0.58) 38%,
+        rgba(255, 255, 255, 0.72) 100%);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.98),
+        inset 0 -1px 0 0 rgba(12, 15, 26, 0.05),
+        0 14px 32px -10px rgba(12, 15, 26, 0.20),
+        0 1px 3px -1px rgba(12, 15, 26, 0.10);
+}
+.capsule-bar::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.35),
+        rgba(255, 255, 255, 0.05) 30%,
+        rgba(255, 255, 255, 0.02) 50%,
+        rgba(255, 255, 255, 0.12) 70%,
+        rgba(255, 255, 255, 0.28));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+}
+.capsule-bar-light::before {
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.68),
+        rgba(255, 255, 255, 0.15) 30%,
+        rgba(12, 15, 26, 0.03) 50%,
+        rgba(255, 255, 255, 0.28) 70%,
+        rgba(255, 255, 255, 0.52));
+}
+.capsule-bar-button {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    opacity: 0.72;
+    transition: all 0.2s ease;
+}
+.capsule-bar-button:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08);
+}
+.capsule-bar-button.active {
+    opacity: 1;
+    color: #ff3b30;
+}
+.capsule-bar-dark .capsule-bar-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+.capsule-bar-light .capsule-bar-button:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+.capsule-bar-divider {
+    width: 1px;
+    height: 18px;
+    background: currentColor;
+    opacity: 0.12;
+    flex-shrink: 0;
+}
+
+/* ---------- 胶片颗粒 ---------- */
+.grain { position: relative; }
+.grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+}
+
+/* 任务6：原 .seal class（"视"字印章）已确认全仓库无其他引用（site-footer 已替换为 .brand-mark logo 占位），
+   按架构方案一并删除，避免留下死代码。.ghost-char 系仍被"影像档案"区"录"字水印使用，保留。 */
+
+/* ---------- 巨型底纹字 ---------- */
+.ghost-char {
+    @apply pointer-events-none select-none font-display font-semibold leading-none;
+    color: transparent;
+    -webkit-text-stroke: 1px rgb(12 15 26 / 0.10);
+}
+.ghost-char-light {
+    -webkit-text-stroke: 1px rgb(255 255 255 / 0.09);
+}

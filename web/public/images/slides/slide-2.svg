@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-label="校园影像 · 活动现场">
+  <defs>
+    <linearGradient id="s2bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0710"/>
+      <stop offset="50%" stop-color="#1a1230"/>
+      <stop offset="100%" stop-color="#0c0a1e"/>
+    </linearGradient>
+    <radialGradient id="s2glow" cx="22%" cy="78%" r="60%">
+      <stop offset="0%" stop-color="#7c5cff" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#5b8def" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#5b8def" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="s2blur"><feGaussianBlur stdDeviation="50"/></filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#s2bg)"/>
+  <rect width="1920" height="1080" fill="url(#s2glow)"/>
+  <g filter="url(#s2blur)" opacity="0.55">
+    <circle cx="420" cy="760" r="260" fill="#6d5cff" fill-opacity="0.4"/>
+    <circle cx="1520" cy="300" r="210" fill="#3b82f6" fill-opacity="0.32"/>
+  </g>
+  <g opacity="0.5">
+    <path d="M0 720 C 380 600, 700 900, 1020 740 S 1580 560, 1920 700 L1920 1080 L0 1080 Z" fill="#060512" fill-opacity="0.7"/>
+    <path d="M0 800 C 420 700, 760 960, 1100 820 S 1620 660, 1920 780 L1920 1080 L0 1080 Z" fill="#0a0820" fill-opacity="0.7"/>
+  </g>
+  <g transform="translate(1280 520)" fill="none" stroke="#d7d2ff" stroke-opacity="0.28" stroke-width="2">
+    <rect x="-150" y="-110" width="300" height="200" rx="14"/>
+    <rect x="-110" y="-70" width="220" height="140" rx="10" stroke-opacity="0.18"/>
+    <circle cx="0" cy="0" r="44" stroke-opacity="0.35"/>
+  </g>
+</svg>

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-label="校园影像 · 光与镜头">
+  <defs>
+    <linearGradient id="s1bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070b16"/>
+      <stop offset="55%" stop-color="#0d1b3a"/>
+      <stop offset="100%" stop-color="#0a1226"/>
+    </linearGradient>
+    <radialGradient id="s1glow" cx="74%" cy="26%" r="55%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.55"/>
+      <stop offset="45%" stop-color="#2f6df0" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#2f6df0" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="s1blur"><feGaussianBlur stdDeviation="46"/></filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#s1bg)"/>
+  <rect width="1920" height="1080" fill="url(#s1glow)"/>
+  <g filter="url(#s1blur)" opacity="0.5">
+    <circle cx="1480" cy="250" r="240" fill="#2f6df0" fill-opacity="0.4"/>
+    <circle cx="320" cy="880" r="220" fill="#1e40af" fill-opacity="0.35"/>
+  </g>
+  <g stroke="#9ec1ff" stroke-opacity="0.10" stroke-width="1">
+    <path d="M0 270 H1920 M0 540 H1920 M0 810 H1920 M480 0 V1080 M960 0 V1080 M1440 0 V1080"/>
+  </g>
+  <g transform="translate(1380 360)" opacity="0.9">
+    <circle r="180" fill="none" stroke="#cfe0ff" stroke-opacity="0.30" stroke-width="2"/>
+    <circle r="120" fill="none" stroke="#cfe0ff" stroke-opacity="0.22" stroke-width="2"/>
+    <g stroke="#dbe7ff" stroke-opacity="0.35" stroke-width="2">
+      <line x1="-180" y1="0" x2="-120" y2="0"/><line x1="180" y1="0" x2="120" y2="0"/>
+      <line x1="0" y1="-180" x2="0" y2="-120"/><line x1="0" y1="180" x2="0" y2="120"/>
+    </g>
+    <circle r="8" fill="#ffffff" fill-opacity="0.9"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+# ============================================================
+# ResourceSpace 接入 .gitignore
+# 放置位置： VisionSY/resourcespace/.gitignore
+# 作用：把含密钥的插件本地配置挡在库外。
+# ============================================================
+
+# ★ 关键：插件站点本地配置，含 client_secret 与真实 RS 组 ID，永不入库
+plugin/visionsy_sso/config.php
+
+# 其它本地草稿
+*.local.php
+plugin/visionsy_sso/*.local.php

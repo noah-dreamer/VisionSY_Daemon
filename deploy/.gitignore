@@ -1,0 +1,19 @@
+# Public deploy templates only
+*.local
+*.local.*
+.env
+*.env
+*.secret
+*.pem
+*.key
+*.crt
+*.p12
+*.sql
+*.sql.gz
+
+# Ignore local deploy copies; keep only *.example templates.
+nginx/*.conf
+nginx/snippets/*.conf
+systemd/*.service
+scripts/*.sh
+reverse-proxy/*.local.md

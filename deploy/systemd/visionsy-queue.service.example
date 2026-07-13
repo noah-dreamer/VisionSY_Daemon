@@ -1,0 +1,25 @@
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# <SYSTEMD_UNIT_DIR>/visionsy-queue.service
+# VisionSY 队列 worker（邮件发送等异步任务）
+[Unit]
+Description=VisionSY queue worker
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/example
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/www/example/storage /var/www/example/bootstrap/cache
+
+[Install]
+WantedBy=multi-user.target

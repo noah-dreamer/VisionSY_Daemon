@@ -1,0 +1,86 @@
+# ============================================================
+# VisionSY 仓库根 .gitignore
+# 放置位置： VisionSY/.gitignore
+# 作用：仓库级兜底。这里的规则对所有子目录（web/、resourcespace/、
+#       deploy/、docs/）都生效，所以各子目录的 .gitignore 只需写
+#       自己特有的东西。
+# ============================================================
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Secrets / local configs
+config.php
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Dependencies
+node_modules/
+vendor/
+
+# Laravel / runtime
+# 运行期文件由 web/storage、web/bootstrap/cache 各目录内的 .gitignore
+# 精细管理（* + !.gitignore），这样空目录结构可以入库、fresh clone 即可运行。
+storage/logs/*
+!storage/logs/.gitignore
+storage/framework/cache/*
+!storage/framework/cache/.gitignore
+!storage/framework/cache/data/
+storage/framework/cache/data/*
+!storage/framework/cache/data/.gitignore
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
+storage/framework/testing/*
+!storage/framework/testing/.gitignore
+storage/framework/views/*
+!storage/framework/views/.gitignore
+storage/app/public/*
+!storage/app/public/.gitignore
+storage/app/private/*
+!storage/app/private/.gitignore
+bootstrap/cache/*
+!bootstrap/cache/.gitignore
+
+# Build output
+public/build/
+public/hot
+
+# System/editor
+.DS_Store
+Thumbs.db
+.idea/
+
+# Backups / dumps
+*.sql
+*.sqlite
+*.db
+*.dump
+*.bak
+*.zip
+*.7z
+*.tar
+*.tar.gz
+
+# Logs
+*.log
+
+# OpenHands
+/.openhands/
+/workspace/
+/conversations/
+/sessions/
+/.sessions/
+/.eval_sessions/
+/debug/
+/cache/
+/output/
+/.agents_tmp/
+
+config.toml
+config.toml_
+config.toml.bak

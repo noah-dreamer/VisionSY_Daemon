@@ -1,0 +1,71 @@
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# =====================================================================
+# 公网边缘服务器 Nginx —— example.com / www.example.com（VisionSY 项目官网回源）
+#
+# 链路：CF SaaS 边缘 -> 本 server(:443) -> https://<ORIGIN_PUBLIC_IP>:__GATEWAY_PORT__
+#       -> 反向代理网关 按 Host 头分发 -> 官网容器 10.0.0.10
+#
+# 安全：
+#   - 仅 CF 回源 IP 可访问（$is_cf）
+#   - 官网管理后台 /admin 不经公网直接暴露：默认在 CF WAF 或下方
+#     location ^~ /admin 处按需收紧（建议仅 管理网络 管理轨从内网直接
+#     访问 10.0.0.10，公网路径整体关闭）。
+#   - 内部 API /api/ 仅供学校内网 反向代理网关 / RS 调用，公网一律拒绝。
+#
+# 占位符：<ORIGIN_PUBLIC_IP> 由生产网络配置提供，不提交 Git。
+# =====================================================================
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name example.com www.example.com;
+
+    ssl_certificate     __TLS_CERT_DIR__/cert.pem;
+    ssl_certificate_key __TLS_CERT_DIR__/key.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    if ($is_cf = 0) { return 444; }
+
+    client_max_body_size 8m;
+
+    # 管理后台不对公网开放：运维经 管理网络 管理轨在内网直接访问官网容器
+    location ^~ /admin {
+        return 403;
+    }
+
+    # 内部 API（transfer-token 等）仅限学校内网调用，公网拒绝
+    location ^~ /api/ {
+        return 403;
+    }
+
+    location / {
+        proxy_pass          https://<ORIGIN_PUBLIC_IP>:__GATEWAY_PORT__;
+        proxy_ssl_verify    off;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+        include __NGINX_CONFIG_DIR__/snippets/cloudflare-real-ip.conf;
+    }
+}
+
+# ---------------------------------------------------------------------
+# service.example.com（预留扩展服务，启用时取消注释并在 反向代理网关 加对应 Host 规则）
+# ---------------------------------------------------------------------
+# server {
+#     listen 443 ssl;
+#     http2 on;
+#     server_name service.example.com;
+#
+#     ssl_certificate     __TLS_CERT_DIR__/cert.pem;
+#     ssl_certificate_key __TLS_CERT_DIR__/key.pem;
+#     ssl_protocols       TLSv1.2 TLSv1.3;
+#
+#     if ($is_cf = 0) { return 444; }
+#
+#     location / {
+#         proxy_pass          https://<ORIGIN_PUBLIC_IP>:__GATEWAY_PORT__;
+#         proxy_ssl_verify    off;
+#         include __NGINX_CONFIG_DIR__/snippets/cloudflare-real-ip.conf;
+#     }
+# }

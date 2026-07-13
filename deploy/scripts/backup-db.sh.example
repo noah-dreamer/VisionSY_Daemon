@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# PUBLIC TEMPLATE ONLY
+# Replace every <PLACEHOLDER> or __PLACEHOLDER__ before deployment.
+# Never commit production addresses, credentials, certificate paths, or backup destinations.
+
+# =====================================================================
+# VisionSY 官网数据库备份（建议由 cron 每日 03:30 执行）
+#   30 3 * * * root /var/www/example/deploy/scripts/backup-db.sh.example
+#
+# 备份落盘到本机 /var/backups/example，再由 备份存储 侧任务拉取归档
+# （与 README《备份策略》中 RS 数据库备份同一节奏：本地 7 天 + NAS 长期）。
+# 数据库凭据从 .env 读取，不写死在脚本中。
+# =====================================================================
+set -euo pipefail
+
+APP_DIR="/var/www/example"
+BACKUP_DIR="/var/backups/example"
+KEEP_DAYS=7
+
+mkdir -p "$BACKUP_DIR"
+
+# 从 .env 读取数据库配置
+env_get() { grep -E "^$1=" "$APP_DIR/.env" | head -n1 | cut -d= -f2- | tr -d '"'; }
+
+DB_HOST="$(env_get DB_HOST)"
+DB_PORT="$(env_get DB_PORT)"
+DB_DATABASE="$(env_get DB_DATABASE)"
+DB_USERNAME="$(env_get DB_USERNAME)"
+DB_PASSWORD="$(env_get DB_PASSWORD)"
+
+STAMP="$(date '+%Y%m%d-%H%M%S')"
+OUT="$BACKUP_DIR/visionsy-$STAMP.sql.gz"
+
+echo "==> 备份 $DB_DATABASE 到 $OUT"
+MYSQL_PWD="$DB_PASSWORD" mysqldump \
+    --host="$DB_HOST" --port="$DB_PORT" --user="$DB_USERNAME" \
+    --single-transaction --quick --routines --triggers \
+    "$DB_DATABASE" | gzip -9 > "$OUT"
+
+echo "==> 清理 ${KEEP_DAYS} 天前的旧备份"
+find "$BACKUP_DIR" -name 'visionsy-*.sql.gz' -mtime +"$KEEP_DAYS" -delete
+
+echo "==> 备份完成：$(du -h "$OUT" | cut -f1)"
