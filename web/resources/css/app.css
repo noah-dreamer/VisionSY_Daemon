@@ -886,3 +886,16 @@ html.js [data-reveal].is-revealed {
 .ghost-char-light {
     -webkit-text-stroke: 1px rgb(255 255 255 / 0.09);
 }
+
+/* ---------- PlayCaptcha（抓娃娃机人机验证）兼容修正 ----------
+   Tailwind Preflight 给所有 img/svg/video 套了 display:block（见
+   tailwindcss preflight.css），这会把上游 <ClawCaptcha> 副标题里与文字
+   并排的玩具缩略图 .clawcap-sub-toy 挤到单独一行，导致
+   "Use the claw to pick up the [图]yellow duck" 被拆成三行、缩略图与
+   玩具英文名错位（hst 2 不用 Tailwind、img 保持默认 inline，故无此问题）。
+   在 .clawcap 作用域内把图片恢复为 inline-block，副标题即回到单行。
+   写在 @layer 之外，优先级高于 Preflight 的 @layer base。 */
+.clawcap img,
+.clawcap svg {
+    display: inline-block;
+}

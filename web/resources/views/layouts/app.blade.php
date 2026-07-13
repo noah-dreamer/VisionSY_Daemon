@@ -65,6 +65,7 @@
 
             {{-- 桌面操作区：独立液态玻璃胶囊按钮 --}}
             <nav class="relative z-10 hidden items-center gap-2 sm:flex" aria-label="主导航">
+                <a href="{{ route('media.index') }}" class="capsule-bar-btn-dark">媒体库</a>
                 @auth
                     <a href="{{ config('visionsy.urls.auth') }}/dashboard"
                        class="capsule-bar-btn-dark">控制台</a>
@@ -107,13 +108,13 @@
                     @if (auth()->user()->isSystemAdmin())
                         <a href="{{ config('visionsy.urls.auth') }}/admin" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">管理后台</a>
                     @endif
-                    <a href="{{ config('visionsy.urls.resourcespace') }}" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">媒体库</a>
+                    <a href="{{ route('media.index') }}" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">媒体库</a>
                     <form method="POST" action="{{ route('logout') }}" class="mt-1">
                         @csrf
                         <button type="submit" class="capsule-bar-btn-dark w-full">退出登录</button>
                     </form>
                 @else
-                    <a href="{{ config('visionsy.urls.resourcespace') }}" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">媒体库</a>
+                    <a href="{{ route('media.index') }}" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">媒体库</a>
                     <a href="{{ config('visionsy.urls.auth') }}/login" class="capsule-bar-btn-dark mt-1 w-full">登录</a>
                     <a href="{{ config('visionsy.urls.auth') }}/register" class="capsule-bar-btn-dark-filled mt-1 w-full">注册账号</a>
                 @endauth
@@ -121,7 +122,9 @@
         </div>
     </header>
 
-    <main id="main" class="flex-1 {{ $overHero ? '' : 'pt-24' }}">
+    {{-- 内页（非 hero 页）默认 light tone：悬浮导航呈现与首页白底区一致的熏色玻璃质感；
+         带 hero 的页面由各 section 自行声明 data-nav-tone。 --}}
+    <main id="main" class="flex-1 {{ $overHero ? '' : 'pt-16' }}" data-nav-tone="{{ $overHero ? 'dark' : 'light' }}">
         @if (session('status'))
             <div class="shell pt-6">
                 <div class="alert-success" role="status">

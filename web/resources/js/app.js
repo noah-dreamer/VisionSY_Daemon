@@ -100,7 +100,12 @@ const finePointer = window.matchMedia('(pointer: fine)').matches;
             const w = Math.max(2, Math.round(rect.width));
             const h = Math.max(2, Math.round(rect.height));
             const radius = parseFloat(getComputedStyle(bar).borderTopLeftRadius) || 24;
-            feImage.setAttribute('href', buildMap(w, h, radius));
+            const map = buildMap(w, h, radius);
+            feImage.setAttribute('href', map);
+            feImage.setAttribute('x', '0');
+            feImage.setAttribute('y', '0');
+            feImage.setAttribute('width', String(w));
+            feImage.setAttribute('height', String(h));
             feMaps.forEach(([el, k]) => el.setAttribute('scale', String(MAX_SHIFT * 2 * k)));
             document.documentElement.classList.add('supports-refraction');
         };
@@ -314,6 +319,45 @@ document.addEventListener('DOMContentLoaded', () => {
     initPointerFX();
     initNavToneAwareness();
 });
+
+
+/* 邮箱验证码输入页：重发冷却倒计时 */
+Alpine.data('verifyCodeInput', (initialCooldown = 0) => ({
+    code: '',
+    cooldown: initialCooldown,
+    init() {
+        if (this.cooldown > 0) this._tick();
+    },
+    _tick() {
+        const timer = setInterval(() => {
+            this.cooldown--;
+            if (this.cooldown <= 0) { this.cooldown = 0; clearInterval(timer); }
+        }, 1000);
+    },
+}));
+
+/* 媒体库上传页：拖拽选择文件 */
+Alpine.data('mediaUpload', () => ({
+    dragging: false,
+    submitting: false,
+    fileName: '',
+    fileSize: '',
+    setFile(files) {
+        if (!files || !files.length) return;
+        const file = files[0];
+        // 拖拽路径下同步到 <input type=file>
+        if (this.$refs.input && this.$refs.input.files !== files) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            this.$refs.input.files = dt.files;
+        }
+        this.fileName = file.name;
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = file.size, u = 0;
+        while (size >= 1024 && u < units.length - 1) { size /= 1024; u++; }
+        this.fileSize = `${size.toFixed(u === 0 ? 0 : 1)} ${units[u]}`;
+    },
+}));
 
 window.Alpine = Alpine;
 Alpine.start();

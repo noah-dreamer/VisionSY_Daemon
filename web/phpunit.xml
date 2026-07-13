@@ -31,5 +31,11 @@
         <env name="INTERNAL_API_SECRET" value="test-only-placeholder"/>
         <env name="TRANSFER_TOKEN_TTL_SECONDS" value="600"/>
         <env name="TRANSFER_TOKEN_ONE_TIME" value="true"/>
+        <env name="CAPTCHA_ENABLED" value="false"/>
+        <env name="CAPTCHA_MIN_SOLVE_SECONDS" value="0"/>
+        <env name="MEDIA_DIRECT_SERVE" value="true"/>
+        <env name="MEDIA_GUEST_BROWSE" value="true"/>
+        <env name="MEDIA_TEACHER_CAN_UPLOAD" value="true"/>
+        <env name="EMAIL_CODE_RESEND_COOLDOWN" value="60"/>
     </php>
 </phpunit>

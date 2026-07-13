@@ -4,7 +4,7 @@
 
 | 软件 | 版本 |
 | --- | --- |
-| PHP | ≥ 8.2（含 `sqlite3`、`mbstring`、`openssl` 扩展；连生产库才需要 `pdo_mysql`） |
+| PHP | ≥ 8.2（含 `sqlite3`、`mbstring`、`openssl`、**`gd`** 扩展；`gd` 用于媒体库水印与登录滑块验证码；连生产库才需要 `pdo_mysql`） |
 | Composer | 2.x |
 | Node.js | ≥ 20 |
 | MySQL / MariaDB | **可选**。本地默认 SQLite；只有验证真实 MySQL 行为时才需要（`brew install mysql`） |
@@ -37,7 +37,11 @@ npm run dev                     # Vite 热更新，无需 npm run build
 
 打开 http://127.0.0.1:8000 。修改 `resources/views/`、`resources/css|js/`、`routes/`、`app/Http/Controllers/` 等目录均会自动刷新浏览器（见 `vite.config.js` 的 refresh 列表）。`npm run build` 只在生产部署时执行。
 
-在 VS Code 中也可以一键启动：`Cmd+Shift+P → Tasks: Run Task → VisionSY: Start Development`（任务定义见仓库根 `.vscode/tasks.json`）。
+在 VS Code 中推荐直接用任务一键完成（任务定义见仓库根 `.vscode/tasks.json`）：
+
+1. `Cmd/Ctrl+Shift+P → Tasks: Run Task → VisionSY: 初始化开发环境`（首次；自动装依赖 + 复制 `.env.dev.example` 为 `.env` + 建 SQLite + 迁移 + 演示数据，含媒体库示例素材）
+2. `Tasks: Run Task → VisionSY: 一键启动`（同时拉起 Laravel :8000 与 Vite）
+3. 需要重来一遍数据时运行 `VisionSY: 重置简易数据库`；`VisionSY: 查看最新验证码邮件` 可直接从日志提取注册验证码。
 
 ### 可选：需要真实 MySQL / 收件箱时
 
@@ -47,7 +51,7 @@ brew install mailpit && mailpit                     # SMTP 1025 / UI http://loca
 # .env：MAIL_MAILER=smtp / MAIL_HOST=127.0.0.1 / MAIL_PORT=1025
 ```
 
-想在浏览器里收注册验证邮件：把 `.env` 改为 `MAIL_MAILER=smtp`、`MAIL_HOST=127.0.0.1`、`MAIL_PORT=1025`，邮件会出现在 http://localhost:8025 。默认 `MAIL_MAILER=log` 时邮件写入 `storage/logs/laravel.log`，验证链接可从日志复制。
+想在浏览器里收注册验证邮件：把 `.env` 改为 `MAIL_MAILER=smtp`、`MAIL_HOST=127.0.0.1`、`MAIL_PORT=1025`，邮件会出现在 http://localhost:8025 。默认 `MAIL_MAILER=log` 时邮件写入 `storage/logs/laravel.log`，注册验证码（6 位数字）可从日志复制，也可运行 VS Code 任务「VisionSY: 查看最新验证码邮件」。
 
 ## 三、种子账号（密码均为 `<LOCAL_DEV_PASSWORD>`，由 `SEED_DEFAULT_PASSWORD` 控制）
 
@@ -107,3 +111,19 @@ php artisan schedule:work                 # 本地跑调度（过期 token 清�
 ## 七、沙箱 / 离线环境说明
 
 本仓库代码在无网络环境中编写，`composer install`、`npm install` 与 `php artisan test` 需在你的本机（可联网）执行。若任何测试失败，优先检查 PHP 版本与扩展，其次按报错定位——所有测试都只依赖 sqlite 内存库。
+
+
+## 附：集成版新增功能速览
+
+| 功能 | 入口 | 说明 |
+| --- | --- | --- |
+| 内置媒体库（DAM） | `/media` | 统一账户与 UI；游客可浏览缩略图（可配置），登录后按角色分级下载 |
+| 上传素材 | `/media/upload` | 宣传部 / 管理员 / 官微老师（可配置）；自动生成带水印缩略图与预览图；同内容（SHA-256）去重 |
+| 分级下载 | 素材详情页 | 宣传部 / 官微 / 管理员可下无水印原图；已激活普通用户仅带水印压缩图 |
+| 307 直连模式 | `MEDIA_DIRECT_SERVE=false` | 生产环境下载返回 307 到校内/校外直连域名，凭一次性 TransferToken 放行（本地默认 direct 直出） |
+| 注册邮箱验证码 | `/email/verify` | 6 位数字，10 分钟有效、60 秒重发冷却、5 次尝试上限；本地写入日志 |
+| 登录人机验证 | `/login` | 开源 PlayCaptcha 抓娃娃机（github.com/mortspace/playcaptcha）：npm 直接接入上游组件；服务端一次性挑战 + 耗时下限 + 一次性 token；`CAPTCHA_ENABLED=false` 可关闭（测试环境默认关闭） |
+| 全部元数据 | 素材详情页 | 上传时 exiftool（优先）/ PHP exif / getID3 读取照片、视频全部内嵌标签，折叠面板逐组展示；快捷字段（拍摄时间/相机/时长等）入库 |
+| 用户组管理 | 后台 → 用户组 | RS 式权限位（浏览/预览/水印图/原图/上传/管理）+ 每日下载限额 + IP 限制 + 注册默认组；用户管理页可指派组 |
+
+角色与下载权限的完整矩阵见 `app/Policies/MediaResourcePolicy.php` 顶部注释。

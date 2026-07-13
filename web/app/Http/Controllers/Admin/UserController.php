@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class UserController extends Controller
 
     public function index(Request $request): View
     {
-        $query = User::query()->latest('id');
+        $query = User::query()->with('userGroup')->latest('id');
 
         if ($search = trim((string) $request->query('q', ''))) {
             $query->where(function ($q) use ($search) {
@@ -52,6 +53,7 @@ class UserController extends Controller
     {
         return view('admin.users.create', [
             'roles' => UserRole::adminAssignable(),
+            'groups' => UserGroup::orderBy('name')->get(),
         ]);
     }
 
@@ -64,9 +66,11 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', Rule::in(array_map(fn ($r) => $r->value, UserRole::adminAssignable()))],
             'password' => ['required', Password::min(8)],
+            'user_group_id' => ['nullable', 'integer', Rule::exists('user_groups', 'id')],
         ], [], [
             'display_name' => '显示名', 'real_name' => '真实姓名',
             'email' => '邮箱', 'role' => '角色', 'password' => '初始密码',
+            'user_group_id' => '用户组',
         ]);
 
         $user = User::create([
@@ -74,6 +78,7 @@ class UserController extends Controller
             'real_name' => $validated['real_name'],
             'email' => $validated['email'],
             'role' => $validated['role'],
+            'user_group_id' => $validated['user_group_id'] ?? null,
             'status' => UserStatus::Active,
             'password_hash' => $validated['password'],
             'email_verified_at' => now(),
@@ -93,6 +98,7 @@ class UserController extends Controller
         return view('admin.users.edit', [
             'managedUser' => $user,
             'roles' => UserRole::adminAssignable(),
+            'groups' => UserGroup::orderBy('name')->get(),
         ]);
     }
 
@@ -103,15 +109,18 @@ class UserController extends Controller
             'display_name' => ['required', 'string', 'max:50'],
             'real_name' => ['nullable', 'string', 'max:50'],
             'role' => ['required', Rule::in(array_map(fn ($r) => $r->value, UserRole::adminAssignable()))],
-        ], [], ['display_name' => '显示名', 'real_name' => '真实姓名', 'role' => '角色']);
+            'user_group_id' => ['nullable', 'integer', Rule::exists('user_groups', 'id')],
+        ], [], ['display_name' => '显示名', 'real_name' => '真实姓名', 'role' => '角色', 'user_group_id' => '用户组']);
 
-        $before = ['role' => $user->role->value, 'real_name' => $user->real_name];
+        $validated['user_group_id'] = $validated['user_group_id'] ?? null;
+
+        $before = ['role' => $user->role->value, 'real_name' => $user->real_name, 'user_group_id' => $user->user_group_id];
 
         $user->forceFill($validated)->save();
 
         $this->audit->log('admin.user_updated', $request->user(), 'user', (string) $user->id, [
             'before' => $before,
-            'after' => ['role' => $user->role->value, 'real_name' => $user->real_name],
+            'after' => ['role' => $user->role->value, 'real_name' => $user->real_name, 'user_group_id' => $user->user_group_id],
         ]);
 
         return redirect()->route('admin.users.edit', $user)->with('status', '账号信息已更新。');

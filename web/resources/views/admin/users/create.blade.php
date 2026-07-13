@@ -26,6 +26,17 @@
                 @error('role') <p class="form-error">{{ $message }}</p> @enderror
             </div>
 
+                <div class="sm:col-span-2">
+                    <label for="user_group_id" class="form-label">用户组（媒体库权限组，可选）</label>
+                    <select id="user_group_id" name="user_group_id" class="form-input">
+                        <option value="">未入组（按角色默认权限）</option>
+                        @foreach ($groups as $group)
+                            <option value="{{ $group->id }}" @selected((string) old('user_group_id') === (string) $group->id)>{{ $group->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('user_group_id') <p class="form-error">{{ $message }}</p> @enderror
+                </div>
+
             <x-field name="password" label="初始密码" :value="old('password')" mono required
                      placeholder="至少 8 位，请告知用户后让其修改" />
 

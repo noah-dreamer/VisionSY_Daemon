@@ -4,12 +4,13 @@
 @section('page-title', '概览')
 
 @section('content')
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <x-stat-card label="用户总数" :value="$stats['total_users']" />
         <x-stat-card label="已激活" :value="$stats['active_users']" tone="text-emerald-600" />
         <x-stat-card label="待激活" :value="$stats['pending_activation']" tone="text-amber-600" />
         <x-stat-card label="已禁用" :value="$stats['disabled_users']" tone="text-red-600" />
         <x-stat-card label="启用网段" :value="$stats['campus_ranges']" tone="text-brand-600" />
+        <x-stat-card label="媒体素材" :value="$stats['media_resources']" tone="text-brand-600" />
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">

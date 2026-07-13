@@ -1,5 +1,24 @@
 # VisionSY
 
+> **⚡ 集成版（Integrated Edition）说明**
+>
+> 本版本已将媒体资产管理（DAM）**直接内置进官网应用**（`web/`），不再需要独立部署 ResourceSpace：
+>
+> - **统一账户**：媒体库直接使用官网的用户表与角色体系（宣传部 / 官微老师 / 普通用户 / 游客），无 SSO 跳转、无第二套账号数据库；
+> - **统一 UI**：媒体库页面复用官网的设计系统（同一套 Tailwind 设计令牌、卡片、按钮、徽章组件），视觉零违和；
+> - **对齐 ResourceSpace 的核心能力**：上传时读取照片/视频**全部内嵌标签**（exiftool 优先，回退 exif/getID3）、分级下载 + GD 自动平铺水印、SHA-256 去重、归档、审计；
+> - **用户/用户组/权限统一在官网后台管理**：RS 式用户组（权限位 + 每日下载限额 + IP 限制 + 注册默认组），与账号体系同库同后台，零割裂；
+> - **注册邮箱验证码**：注册后发送 6 位数字验证码（10 分钟有效、60 秒重发冷却、5 次尝试上限）；
+> - **登录人机验证**：直接接入开源 [PlayCaptcha](https://github.com/mortspace/playcaptcha)（React 抓娃娃机组件，npm 包 + 官方素材，服务端叠加一次性挑战/耗时下限/一次性 token 防线）；
+> - **一键测试**：`.vscode/tasks.json` 提供「初始化开发环境」「一键启动」任务，SQLite 简易数据库 + `php artisan serve`，开箱即用（见下方 Quick Start）；
+> - 原 `resourcespace/` 目录（外部 ResourceSpace + SSO 插件方案）**保留作为历史/备选方案**，默认不再使用。
+>
+> **Quick Start（VS Code）**：打开仓库 → `Ctrl/Cmd+Shift+P` → *Tasks: Run Task* → **VisionSY: 初始化开发环境**（首次）→ **VisionSY: 一键启动** → 访问 <http://127.0.0.1:8000>。
+> 种子账号密码统一 `visionsy-dev`：`admin@example.com`（管理员）、`media@example.com`（宣传部，可上传/下原图）、`teacher@example.com`（官微编辑）、`student@student.example.com`（普通用户，仅水印图）。
+> 注册验证码在 `web/storage/logs/laravel.log` 查看（或运行任务「查看最新验证码邮件」）。
+>
+> 依赖：PHP ≥ 8.2（含 **ext-gd**）、Composer、Node.js ≥ 18。
+
 [English](#english) | [简体中文](#简体中文)
 
 <a id="english"></a>
@@ -76,7 +95,9 @@ It provides:
 
 See [`web/README.md`](web/README.md) for development and setup instructions.
 
-### ResourceSpace Integration
+### ResourceSpace Integration (legacy / optional)
+
+> Superseded by the built-in media library in `web/` (unified accounts & UI). Kept for reference and as an alternative external-DAM deployment path.
 
 The `resourcespace/` directory contains the VisionSY integration for ResourceSpace.
 

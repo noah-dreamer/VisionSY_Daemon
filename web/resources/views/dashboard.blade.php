@@ -3,7 +3,7 @@
 @section('title', '控制台 · VisionSY')
 
 @section('content')
-    <section class="shell py-12 sm:py-16">
+    <section class="shell py-6 sm:py-10">
         <div class="mx-auto max-w-4xl space-y-6">
 
             {{-- 顶部状态卡片 --}}
@@ -29,7 +29,7 @@
                     @if ($user->status->value === 'pending_email_verification')
                         <div class="alert-info">
                             <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
-                            <span>请先验证邮箱：我们已向 <span class="font-medium">{{ $user->email }}</span> 发送验证邮件。</span>
+                            <span>请先验证邮箱：我们已向 <span class="font-medium">{{ $user->email }}</span> 发送了 6 位数字验证码。</span>
                         </div>
                         <a href="{{ route('verification.notice') }}" class="btn-primary">前往验证邮箱</a>
 
@@ -71,7 +71,7 @@
                         <div class="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2 class="h-card">账号已激活</h2>
-                                <p class="mt-1 prose-muted">你可以免密进入 ResourceSpace 媒体库，按角色权限检索、浏览与下载素材。</p>
+                                <p class="mt-1 prose-muted">你可以直接进入站内媒体库，按角色权限检索、浏览与下载素材。</p>
                             </div>
                             <a href="{{ $resourceSpaceUrl }}" class="btn-primary shrink-0">
                                 进入媒体库
@@ -107,8 +107,8 @@
                    @if(!$isActive) aria-disabled="true" tabindex="-1" @endif>
                     <x-feature-icon path="M2.25 12.76V19.5a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25v-6.74M21 8.25 12 13 3 8.25 12 3.5l9 4.75Z" class="group-hover:bg-brand-600 group-hover:text-white group-hover:ring-brand-600" />
                     <div>
-                        <h3 class="h-card">ResourceSpace 媒体库</h3>
-                        <p class="mt-1 prose-muted">{{ $isActive ? '免密进入，按权限检索与下载素材。' : '激活后即可进入。' }}</p>
+                        <h3 class="h-card">VisionSY 媒体库</h3>
+                        <p class="mt-1 prose-muted">{{ $isActive ? '按权限检索、预览与下载素材。' : '激活后即可下载素材。' }}</p>
                     </div>
                 </a>
 

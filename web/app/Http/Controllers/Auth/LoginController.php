@@ -30,6 +30,14 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ], [], ['email' => '邮箱', 'password' => '密码']);
 
+        // PlayCaptcha 人机验证：滑块拼图通过后签发的一次性 token
+        $captcha = app(\App\Services\Captcha\PlayCaptchaService::class);
+        if ($captcha->enabled() && ! $captcha->consumePass($request->input('captcha_token'))) {
+            throw ValidationException::withMessages([
+                'captcha' => '请先完成滑块拼图人机验证。',
+            ]);
+        }
+
         $throttleKey = mb_strtolower($credentials['email']).'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {

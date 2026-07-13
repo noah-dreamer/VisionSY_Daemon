@@ -27,8 +27,20 @@
                             <option value="{{ $role->value }}" @selected(old('role', $managedUser->role->value) === $role->value)>{{ $role->label() }}</option>
                         @endforeach
                     </select>
-                    <p class="form-hint">角色变更后，用户下次 SSO 登录媒体库时自动同步用户组。</p>
+                    <p class="form-hint">未选择用户组时，媒体库权限按此角色的默认矩阵。</p>
                     @error('role') <p class="form-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label for="user_group_id" class="form-label">用户组（媒体库权限组）</label>
+                    <select id="user_group_id" name="user_group_id" class="form-input">
+                        <option value="">未入组（按角色默认权限）</option>
+                        @foreach ($groups as $group)
+                            <option value="{{ $group->id }}" @selected((string) old('user_group_id', $managedUser->user_group_id) === (string) $group->id)>{{ $group->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="form-hint">入组后媒体库权限以组的权限位为准（<a href="{{ route('admin.user-groups.index') }}" class="text-brand-600 hover:text-brand-700">管理用户组</a>）。</p>
+                    @error('user_group_id') <p class="form-error">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="sm:col-span-2">

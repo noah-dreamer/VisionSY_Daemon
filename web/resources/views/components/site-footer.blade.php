@@ -8,7 +8,7 @@
         </div>
         <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-500" aria-label="页脚导航">
             <a href="https://example.com" class="transition hover:text-ink-900">example.com</a>
-            <a href="{{ config('visionsy.urls.resourcespace') }}" class="transition hover:text-ink-900">媒体库 media.example.com</a>
+            <a href="{{ route('media.index') }}" class="transition hover:text-ink-900">媒体库</a>
             @auth
                 <a href="{{ config('visionsy.urls.auth') }}/dashboard" class="transition hover:text-ink-900">控制台</a>
             @else

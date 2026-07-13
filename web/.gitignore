@@ -33,3 +33,4 @@ auth.json
 npm-debug.log
 yarn-error.log
 
+/database/database.sqlite

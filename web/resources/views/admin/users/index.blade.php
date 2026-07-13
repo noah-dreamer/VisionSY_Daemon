@@ -51,7 +51,12 @@
                             <p class="text-xs text-ink-500">{{ $u->email }}</p>
                             @if ($u->real_name)<p class="text-xs text-ink-400">实名：{{ $u->real_name }}</p>@endif
                         </td>
-                        <td class="table-cell"><x-badge tone="blue">{{ $u->role->label() }}</x-badge></td>
+                        <td class="table-cell">
+                            <x-badge tone="blue">{{ $u->role->label() }}</x-badge>
+                            @if ($u->userGroup)
+                                <x-badge tone="gray" class="ml-1">{{ $u->userGroup->name }}</x-badge>
+                            @endif
+                        </td>
                         <td class="table-cell"><x-status-badge :status="$u->status" /></td>
                         <td class="table-cell hidden font-mono text-xs lg:table-cell">{{ $u->activation_ip ?? '—' }}</td>
                         <td class="table-cell hidden text-xs tabular-nums lg:table-cell">{{ $u->last_login_at?->format('Y-m-d H:i') ?? '—' }}</td>

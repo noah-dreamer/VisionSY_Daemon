@@ -1,10 +1,15 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.css',
+                'resources/js/app.js',
+                'resources/js/claw-captcha.jsx', // PlayCaptcha（React 岛，仅登录页加载）
+            ],
             // 开发时保存以下路径中的文件会触发浏览器整页刷新，
             // 配合 `npm run dev` 即可获得 Live Server 式体验，无需 build。
             refresh: [
@@ -17,5 +22,20 @@ export default defineConfig({
                 'resources/lang/**',
             ],
         }),
+        react(),
     ],
+    // PlayCaptcha 上游组件以绝对路径请求 /playcaptcha.svg 与 /toys/*.png。
+    // 生产环境由 Laravel 直接从 public/ 提供；开发环境（npm run dev）下
+    // 这些静态资源位于 Laravel 进程的 :8000（public/），所以把 Vite dev
+    // server 上对 /playcaptcha.svg、/toys 的请求代理过去，效果等同于
+    // hst 2 的 express.static('public') 同源托管。
+    server: {
+        host: '127.0.0.1',
+        port: 5173,
+        strictPort: true,
+        proxy: {
+            '/playcaptcha.svg': 'http://127.0.0.1:8000',
+            '/toys': 'http://127.0.0.1:8000',
+        },
+    },
 });

@@ -1,41 +1,85 @@
 {
     "version": "2.0.0",
+    // 使用方式：Ctrl/Cmd+Shift+P -> "Tasks: Run Task"
+    //   首次：先运行「VisionSY: 初始化开发环境」（一次即可）
+    //   之后：运行「VisionSY: 一键启动」，浏览器打开 http://127.0.0.1:8000
+    // 简易数据库使用 SQLite 单文件（database/database.sqlite），无需安装 MySQL。
+    // 种子账号（密码统一 visionsy-dev）：
+    //   admin@example.com（系统管理员）
+    //   media@example.com（宣传部成员，可上传/下原图）
+    //   teacher@example.com（官微编辑）
+    //   student@student.example.com（已激活普通用户，仅水印图）
+    //   pending@student.example.com（待校园网激活）
+    // 注册验证码 / 邮件内容在 web/storage/logs/laravel.log 查看。
     "tasks": [
         {
-            "label": "VisionSY: Laravel",
+            "label": "VisionSY: 初始化开发环境",
+            "detail": "composer + npm 安装依赖，生成 .env 与 SQLite 数据库，迁移并写入演示数据（含媒体库示例素材）",
             "type": "shell",
+            "options": { "cwd": "${workspaceFolder}/web" },
+            "command": "composer install && npm install && node -e \"const fs=require('fs'); if(!fs.existsSync('.env')) fs.copyFileSync('.env.dev.example','.env');\" && php artisan key:generate --ansi && node -e \"const fs=require('fs'); fs.closeSync(fs.openSync('database/database.sqlite','a'));\" && php artisan migrate:fresh --seed --ansi && npm run build",
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 重置简易数据库",
+            "detail": "清空 SQLite 并重新写入演示数据（媒体库示例素材会重新生成）",
+            "type": "shell",
+            "options": { "cwd": "${workspaceFolder}/web" },
+            "command": "php artisan migrate:fresh --seed --ansi",
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 网站 (Laravel)",
+            "type": "shell",
+            "options": { "cwd": "${workspaceFolder}/web" },
             "command": "php artisan serve --host=127.0.0.1 --port=8000",
-            "options": {
-                "cwd": "${workspaceFolder}/web"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "group": "visionsy"
-            },
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: Vite",
+            "label": "VisionSY: 前端构建",
+            "detail": "生成 public/build/ 生产静态资源（PlayCaptcha 等），约需 1 秒",
             "type": "shell",
-            "command": "npm run dev",
-            "options": {
-                "cwd": "${workspaceFolder}/web"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "group": "visionsy"
-            },
+            "options": { "cwd": "${workspaceFolder}/web" },
+            "command": "npm run build",
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: Start Development",
+            "label": "VisionSY: 前端 (Vite)",
+            "detail": "启动 Vite 开发服务器（:5173），热更新 CSS/JS，覆盖 public/build/；首次使用需先运行初始化或前端构建",
+            "type": "shell",
+            "options": { "cwd": "${workspaceFolder}/web" },
+            "command": "rm -f public/hot && npm run dev",
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 一键启动",
+            "detail": "同时启动 Laravel(:8000) 与 Vite 前端，访问 http://127.0.0.1:8000",
             "dependsOrder": "parallel",
-            "dependsOn": [
-                "VisionSY: Laravel",
-                "VisionSY: Vite"
-            ],
+            "dependsOn": ["VisionSY: 网站 (Laravel)", "VisionSY: 前端 (Vite)"],
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 运行测试",
+            "type": "shell",
+            "options": { "cwd": "${workspaceFolder}/web" },
+            "command": "php artisan test",
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 查看最新验证码邮件",
+            "detail": "从日志中提取最近发送的邮箱验证码",
+            "type": "shell",
+            "options": { "cwd": "${workspaceFolder}/web" },
+            "command": "node -e \"const fs=require('fs');const p='storage/logs/laravel.log';if(!fs.existsSync(p)){console.log('暂无日志');process.exit(0);}const m=fs.readFileSync(p,'utf8').match(/邮箱验证码：(\\d{6})/g);console.log(m?('最近的验证码：'+m[m.length-1]):'日志中还没有验证码邮件');\"",
+            "presentation": { "reveal": "always", "panel": "shared", "group": "visionsy" },
             "problemMatcher": []
         }
     ]

@@ -83,7 +83,13 @@ class DatabaseSeeder extends Seeder
 
         $this->command?->warn("ResourceSpace OAuth client_id=resourcespace, client_secret={$rsSecret}（仅本地开发；生产 secret 在后台重新创建并存入`<SECRET_MANAGER>`）");
 
-        // 8. 审计日志样例
+        // 8. 默认用户组（媒体库权限组，对齐 ResourceSpace usergroup）
+        $this->call(UserGroupSeeder::class);
+
+        // 9. 媒体库演示素材（GD 生成示例照片，走完整入库 + 水印流程）
+        $this->call(MediaDemoSeeder::class);
+
+        // 10. 审计日志样例
         $admin = User::where('email', 'admin@example.com')->first();
         foreach ([
             ['action' => 'admin.user_created', 'context' => ['email' => 'media@example.com', 'role' => 'propaganda_member']],

@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,9 +39,10 @@ class RegisterController extends Controller
             'password_hash' => $validated['password'], // hashed cast 自动加密
             'role' => UserRole::NormalUser,
             'status' => UserStatus::PendingEmailVerification,
+            'user_group_id' => UserGroup::where('is_registration_default', true)->value('id'),
         ]);
 
-        $user->sendEmailVerificationNotification();
+        app(\App\Services\EmailVerificationCodeService::class)->issue($user);
 
         $audit->log('user.registered', $user, 'user', (string) $user->id);
 

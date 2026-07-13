@@ -1,3 +1,6 @@
+> **⚠️ 已由内置媒体库取代**：集成版已将 DAM 直接内置到 `web/` 官网应用（统一账户库与 UI）。
+> 本目录（外部 ResourceSpace + visionsy_sso 插件方案）保留作为历史参考与备选部署路径，默认不再使用。
+
 # ResourceSpace 接入（resourcespace/）
 
 把 ResourceSpace（`10.0.0.20` / `https://media.example.com`）的登录托管给官网 SSO，并实现分级下载 + 自动水印。本目录包含两部分：要部署进 RS 的**插件代码**，以及在 RS 后台照着配置的**对接文档**。
