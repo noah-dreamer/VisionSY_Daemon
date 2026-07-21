@@ -1,16 +1,5 @@
 {
     "version": "2.0.0",
-    // 使用方式：Ctrl/Cmd+Shift+P -> "Tasks: Run Task"
-    //   首次：先运行「VisionSY: 初始化开发环境」（一次即可）
-    //   之后：运行「VisionSY: 一键启动」，浏览器打开 http://127.0.0.1:8000
-    // 简易数据库使用 SQLite 单文件（database/database.sqlite），无需安装 MySQL。
-    // 种子账号（密码统一 visionsy-dev）：
-    //   admin@example.com（系统管理员）
-    //   media@example.com（宣传部成员，可上传/下原图）
-    //   teacher@example.com（官微编辑）
-    //   student@student.example.com（已激活普通用户，仅水印图）
-    //   pending@student.example.com（待校园网激活）
-    // 注册验证码 / 邮件内容在 web/storage/logs/laravel.log 查看。
     "tasks": [
         {
             "label": "VisionSY: 初始化开发环境",
