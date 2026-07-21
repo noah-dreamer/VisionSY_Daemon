@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DerivativeStatus;
 use App\Enums\MediaStatus;
 use App\Enums\MediaType;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MediaResource extends Model
 {
+    protected $table = 'media_resources';
+
     protected $fillable = [
         'title',
         'description',
@@ -31,6 +34,19 @@ class MediaResource extends Model
         'has_thumb',
         'has_preview',
         'uploaded_by',
+        'storage_source_id',
+        'gallery_id',
+        'relative_path',
+        'source_size_bytes',
+        'source_modified_at',
+        'source_identity',
+        'is_raw',
+        'is_system_managed',
+        'index_status',
+        'derivative_status',
+        'derivative_error',
+        'missing_at',
+        'last_seen_at',
     ];
 
     protected function casts(): array
@@ -40,10 +56,16 @@ class MediaResource extends Model
             'metadata' => 'array',
             'taken_at' => 'datetime',
             'duration_seconds' => 'float',
+            'source_modified_at' => 'datetime',
+            'missing_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'type' => MediaType::class,
             'status' => MediaStatus::class,
+            'index_status' => MediaStatus::class,
             'has_thumb' => 'boolean',
             'has_preview' => 'boolean',
+            'is_raw' => 'boolean',
+            'is_system_managed' => 'boolean',
         ];
     }
 
@@ -52,7 +74,22 @@ class MediaResource extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    /* ---------- 存储路径（相对 storage/app/protected，即 local 磁盘根） ---------- */
+    public function storageSource(): BelongsTo
+    {
+        return $this->belongsTo(MediaStorageSource::class, 'storage_source_id');
+    }
+
+    public function gallery(): BelongsTo
+    {
+        return $this->belongsTo(MediaGallery::class, 'gallery_id');
+    }
+
+    /* ---------- 兼容旧路径（storage_source_id === null） ---------- */
+
+    public function isLegacy(): bool
+    {
+        return $this->storage_source_id === null;
+    }
 
     public function originalRelativePath(): string
     {
@@ -76,6 +113,14 @@ class MediaResource extends Model
         return $query->where('status', MediaStatus::Active->value);
     }
 
+    public function scopeNotMissing(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->where('index_status', '!=', MediaStatus::Missing->value)
+                ->orWhereNull('index_status');
+        });
+    }
+
     public function scopeSearch(Builder $query, ?string $keyword): Builder
     {
         $keyword = trim((string) $keyword);
@@ -83,16 +128,15 @@ class MediaResource extends Model
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($keyword) {
-            $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $keyword).'%';
+        $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $keyword);
+        $like = '%'.$escaped.'%';
+
+        return $query->where(function (Builder $q) use ($like) {
             $q->where('title', 'like', $like)
                 ->orWhere('description', 'like', $like)
                 ->orWhere('original_name', 'like', $like)
-                ->orWhere('tags',
-        'metadata',
-        'taken_at',
-        'camera',
-        'duration_seconds', 'like', $like);
+                ->orWhere('tags', 'like', $like)
+                ->orWhere('camera', 'like', $like);
         });
     }
 
@@ -114,5 +158,15 @@ class MediaResource extends Model
     public function tagList(): array
     {
         return array_values(array_filter(array_map('trim', (array) $this->tags)));
+    }
+
+    public function derivativeStatusEnum(): ?DerivativeStatus
+    {
+        return DerivativeStatus::tryFrom((string) $this->derivative_status);
+    }
+
+    public function isMissing(): bool
+    {
+        return $this->index_status === MediaStatus::Missing->value;
     }
 }

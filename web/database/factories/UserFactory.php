@@ -58,4 +58,12 @@ class UserFactory extends Factory
             'real_name' => $realName ?? ($role->requiresRealName() ? fake()->name() : null),
         ]);
     }
+
+    public function systemAdmin(): static
+    {
+        return $this->state(fn () => [
+            'role' => UserRole::SystemAdmin,
+            'real_name' => fake()->name(),
+        ]);
+    }
 }

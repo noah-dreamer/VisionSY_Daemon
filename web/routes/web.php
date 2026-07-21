@@ -3,7 +3,9 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\CampusIpRangeController;
+use App\Http\Controllers\Admin\GalleryController as AdminGalleryController;
 use App\Http\Controllers\Admin\OAuthClientController;
+use App\Http\Controllers\Admin\StorageSourceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserGroupController;
 use App\Http\Controllers\Auth\CaptchaController;
@@ -13,6 +15,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Media\GalleryController as MediaGalleryController;
 use App\Http\Controllers\Media\MediaFileController;
 use App\Http\Controllers\Media\MediaLibraryController;
 use App\Http\Controllers\Media\MediaUploadController;
@@ -29,7 +32,6 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store']);
 
-    // PlayCaptcha 人机验证（登录页滑块拼图）
     Route::get('/captcha/challenge', [CaptchaController::class, 'challenge'])
         ->middleware('throttle:30,1')->name('captcha.challenge');
     Route::post('/captcha/verify', [CaptchaController::class, 'verify'])
@@ -56,7 +58,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/dashboard/recheck-activation', [DashboardController::class, 'recheckActivation'])
         ->name('dashboard.recheck');
 
-    // OAuth2 授权端点（需登录；token/userinfo 在下方无会话区）
     Route::get('/oauth/authorize', [OAuthController::class, 'authorize'])->name('oauth.authorize');
 });
 
@@ -67,10 +68,11 @@ Route::get('/oauth/userinfo', [OAuthController::class, 'userinfo'])->name('oauth
 
 /* ---------- 内置媒体库（DAM） ---------- */
 Route::prefix('media')->name('media.')->group(function () {
-    // 浏览（游客可浏览缩略图，视 MEDIA_GUEST_BROWSE 配置；策略内判定）
     Route::get('/', [MediaLibraryController::class, 'index'])->name('index');
 
-    // 307 直连出口：无会话，凭一次性 TransferToken 放行（生产走 ssy/lan-ssy 直连域名）
+    Route::get('/galleries', [MediaGalleryController::class, 'index'])->name('galleries.index');
+    Route::get('/galleries/{gallery}', [MediaGalleryController::class, 'show'])->name('galleries.show');
+
     Route::get('/{resource}/transfer', [MediaFileController::class, 'transfer'])->name('transfer');
 
     Route::middleware('auth')->group(function () {
@@ -104,13 +106,29 @@ Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->gr
     Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle');
     Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
-    // 用户组（媒体库权限组，对齐 ResourceSpace 用户组管理）
     Route::get('/user-groups', [UserGroupController::class, 'index'])->name('user-groups.index');
     Route::get('/user-groups/create', [UserGroupController::class, 'create'])->name('user-groups.create');
     Route::post('/user-groups', [UserGroupController::class, 'store'])->name('user-groups.store');
     Route::get('/user-groups/{userGroup}/edit', [UserGroupController::class, 'edit'])->name('user-groups.edit');
     Route::put('/user-groups/{userGroup}', [UserGroupController::class, 'update'])->name('user-groups.update');
     Route::delete('/user-groups/{userGroup}', [UserGroupController::class, 'destroy'])->name('user-groups.destroy');
+
+    Route::get('/storage-sources', [StorageSourceController::class, 'index'])->name('storage-sources.index');
+    Route::get('/storage-sources/create', [StorageSourceController::class, 'create'])->name('storage-sources.create');
+    Route::post('/storage-sources', [StorageSourceController::class, 'store'])->name('storage-sources.store');
+    Route::get('/storage-sources/{storageSource}/edit', [StorageSourceController::class, 'edit'])->name('storage-sources.edit');
+    Route::put('/storage-sources/{storageSource}', [StorageSourceController::class, 'update'])->name('storage-sources.update');
+    Route::delete('/storage-sources/{storageSource}', [StorageSourceController::class, 'destroy'])->name('storage-sources.destroy');
+    Route::post('/storage-sources/{storageSource}/verify', [StorageSourceController::class, 'verify'])->name('storage-sources.verify');
+    Route::post('/storage-sources/{storageSource}/scan', [StorageSourceController::class, 'scan'])->name('storage-sources.scan');
+
+    Route::get('/galleries', [AdminGalleryController::class, 'index'])->name('galleries.index');
+    Route::get('/galleries/create', [AdminGalleryController::class, 'create'])->name('galleries.create');
+    Route::post('/galleries', [AdminGalleryController::class, 'store'])->name('galleries.store');
+    Route::get('/galleries/{gallery}/edit', [AdminGalleryController::class, 'edit'])->name('galleries.edit');
+    Route::put('/galleries/{gallery}', [AdminGalleryController::class, 'update'])->name('galleries.update');
+    Route::delete('/galleries/{gallery}', [AdminGalleryController::class, 'destroy'])->name('galleries.destroy');
+    Route::post('/galleries/{gallery}/scan', [AdminGalleryController::class, 'scan'])->name('galleries.scan');
 
     Route::get('/campus-ips', [CampusIpRangeController::class, 'index'])->name('campus-ips.index');
     Route::post('/campus-ips', [CampusIpRangeController::class, 'store'])->name('campus-ips.store');

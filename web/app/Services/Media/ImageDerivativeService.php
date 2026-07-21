@@ -2,23 +2,12 @@
 
 namespace App\Services\Media;
 
+use App\Models\MediaResource;
 use GdImage;
 use RuntimeException;
 
-/**
- * 图像派生服务（基于 PHP GD，需 ext-gd）。
- *
- * 与 ResourceSpace 的派生策略保持一致：
- *   - 原图（original）永不修改，仅授权用户组可下载；
- *   - 预览图（preview，长边默认 1600px）实时叠加平铺斜向水印；
- *   - 缩略图（thumb，长边默认 640px）同样带水印，供列表页展示。
- *
- * 水印文本默认使用 GD 内置字体（仅 ASCII）；如需中文水印，
- * 在 .env 中配置 MEDIA_WATERMARK_FONT 指向一个 TTF 字体文件即可。
- */
 class ImageDerivativeService
 {
-    /** GD 是否可用（seed / 测试环境自检用）。 */
     public static function available(): bool
     {
         return extension_loaded('gd') && function_exists('imagecreatetruecolor');
@@ -35,10 +24,52 @@ class ImageDerivativeService
         $width = imagesx($src);
         $height = imagesy($src);
 
-        $this->writeDerivative($src, $width, $height, (int) config('visionsy.media.thumb_max_edge', 640), $thumbAbsPath, 18);
-        $this->writeDerivative($src, $width, $height, (int) config('visionsy.media.preview_max_edge', 1600), $previewAbsPath, 22);
+        $this->writeDerivative($src, $width, $height, (int) config('visionsy.media.thumb_max_edge', 640), $thumbAbsPath, 18, true);
+        $this->writeDerivative($src, $width, $height, (int) config('visionsy.media.preview_max_edge', 1600), $previewAbsPath, 22, true);
 
         imagedestroy($src);
+
+        return ['width' => $width, 'height' => $height];
+    }
+
+    /**
+     * 从 JPEG 源生成全部四种派生图，使用 PathResolverService 解析目标路径。
+     *
+     * @return array{width:int,height:int}
+     */
+    public function generateAllDerivatives(
+        string $jpegSourcePath,
+        MediaResource $resource,
+        PathResolverService $pathResolver,
+    ): array {
+        $src = $this->open($jpegSourcePath);
+        $width = imagesx($src);
+        $height = imagesy($src);
+
+        $thumbPath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Thumb);
+        $largePath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Large);
+        $wmJpegPath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedJpeg);
+        $wmPngPath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedPng);
+
+        $this->writeDerivative($src, $width, $height, (int) config('visionsy.media.thumb_max_edge', 640), $thumbPath, 18, true);
+        $this->writeDerivative($src, $width, $height, (int) config('visionsy.media.preview_max_edge', 1600), $largePath, 22, true);
+
+        $wmLarge = $this->scaleImage($src, $width, $height, (int) config('visionsy.media.watermark_max_edge', 3200));
+        $wmW = imagesx($wmLarge);
+        $wmH = imagesy($wmLarge);
+        $this->applyTiledWatermark($wmLarge, $wmW, $wmH, 28);
+
+        @mkdir(dirname($wmJpegPath), 0775, true);
+        imagejpeg($wmLarge, $wmJpegPath, 90);
+        @mkdir(dirname($wmPngPath), 0775, true);
+        imagepng($wmLarge, $wmPngPath, 6);
+
+        imagedestroy($wmLarge);
+        imagedestroy($src);
+
+        $this->stripGpsExif($wmJpegPath);
+        $this->stripGpsExif($thumbPath);
+        $this->stripGpsExif($largePath);
 
         return ['width' => $width, 'height' => $height];
     }
@@ -80,26 +111,40 @@ class ImageDerivativeService
         return $img;
     }
 
-    private function writeDerivative(GdImage $src, int $srcW, int $srcH, int $maxEdge, string $destPath, int $fontSize): void
+    private function scaleImage(GdImage $src, int $srcW, int $srcH, int $maxEdge): GdImage
     {
         $scale = min(1.0, $maxEdge / max($srcW, $srcH));
         $w = max(1, (int) round($srcW * $scale));
         $h = max(1, (int) round($srcH * $scale));
 
         $dst = imagecreatetruecolor($w, $h);
-        // 白底铺垫（透明 PNG 落到 JPEG 上时避免黑底）
         $white = imagecolorallocate($dst, 255, 255, 255);
         imagefilledrectangle($dst, 0, 0, $w, $h, $white);
         imagecopyresampled($dst, $src, 0, 0, 0, 0, $w, $h, $srcW, $srcH);
 
-        $this->applyTiledWatermark($dst, $w, $h, $fontSize);
+        return $dst;
+    }
 
-        @mkdir(dirname($destPath), 0775, true);
-        if (! imagejpeg($dst, $destPath, 82)) {
+    private function writeDerivative(GdImage $src, int $srcW, int $srcH, int $maxEdge, string $destPath, int $fontSize, bool $watermark): void
+    {
+        $dst = $this->scaleImage($src, $srcW, $srcH, $maxEdge);
+        $w = imagesx($dst);
+        $h = imagesy($dst);
+
+        if ($watermark) {
+            $this->applyTiledWatermark($dst, $w, $h, $fontSize);
+        }
+
+        $tmpPath = $destPath.'.tmp-'.bin2hex(random_bytes(4));
+        @mkdir(dirname($tmpPath), 0775, true);
+        if (! imagejpeg($dst, $tmpPath, 82)) {
             imagedestroy($dst);
+            @unlink($tmpPath);
             throw new RuntimeException('派生图写入失败：'.$destPath);
         }
         imagedestroy($dst);
+
+        rename($tmpPath, $destPath);
     }
 
     /** 45° 平铺半透明水印。 */
@@ -109,14 +154,12 @@ class ImageDerivativeService
         $font = config('visionsy.media.watermark_font');
         $useTtf = is_string($font) && $font !== '' && is_file($font) && function_exists('imagettftext');
 
-        // 单元水印画在独立透明层上再旋转平铺
         $pad = 40;
         if ($useTtf) {
             $box = imagettfbbox($fontSize, 0, $font, $text);
             $textW = abs($box[4] - $box[0]);
             $textH = abs($box[5] - $box[1]);
         } else {
-            // GD 内置字体 5：宽 9px、高 15px（仅 ASCII）
             $text = preg_replace('/[^\x20-\x7E]/', '', $text) ?: 'VisionSY';
             $textW = strlen($text) * 9;
             $textH = 15;
@@ -158,5 +201,25 @@ class ImageDerivativeService
 
         imagedestroy($tile);
         imagedestroy($rotated);
+    }
+
+    /**
+     * 从 JPEG 派生图中移除 GPS 标签（调用 ExifTool）。
+     */
+    private function stripGpsExif(string $path): void
+    {
+        $bin = config('visionsy.media.exiftool_path') ?: 'exiftool';
+
+        try {
+            $process = new \Symfony\Component\Process\Process([
+                $bin, '-overwrite_original',
+                '-gps:all=', '-XMP:GPSLatitude=', '-XMP:GPSLongitude=',
+                $path,
+            ]);
+            $process->setTimeout(10);
+            $process->run();
+        } catch (\Throwable) {
+            // exiftool 不可用时静默跳过
+        }
     }
 }

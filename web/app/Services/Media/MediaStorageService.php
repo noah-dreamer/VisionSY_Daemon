@@ -2,6 +2,7 @@
 
 namespace App\Services\Media;
 
+use App\Enums\MediaStatus;
 use App\Enums\MediaType;
 use App\Models\MediaResource;
 use App\Models\User;
@@ -10,28 +11,21 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-/**
- * 媒体入库：原图落盘（private 磁盘）→ 计算校验和 → 生成带水印派生图 → 建记录。
- * 目录结构（对齐 ResourceSpace filestore 思路，按散列目录避免单目录过大）：
- *   storage/app/protected/media/{ab}/{cd}/{ulid}/original.{ext}|preview.jpg|thumb.jpg
- */
 class MediaStorageService
 {
     public function __construct(
         private ImageDerivativeService $derivatives,
         private MediaMetadataService $metadata,
         private AuditLogger $audit,
+        private PathResolverService $pathResolver,
     ) {
     }
 
     public function disk(): \Illuminate\Contracts\Filesystem\Filesystem
     {
-        return Storage::disk('local'); // storage/app/private
+        return Storage::disk('local');
     }
 
-    /**
-     * @param array{title:string,description?:?string,tags?:?string} $meta
-     */
     public function store(UploadedFile $file, array $meta, User $uploader): MediaResource
     {
         $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
@@ -42,17 +36,14 @@ class MediaStorageService
         $ulid = strtolower((string) Str::ulid());
         $dir = substr($ulid, 0, 2).'/'.substr($ulid, 2, 2).'/'.$ulid;
 
-        // 1. 原图落盘
         $file->storeAs("media/{$dir}", "original.{$ext}", ['disk' => 'local']);
         $absOriginal = $this->disk()->path("media/{$dir}/original.{$ext}");
 
         $checksum = hash_file('sha256', $absOriginal);
         $size = filesize($absOriginal);
 
-        // 2. 读取全部内嵌元数据（对齐 ResourceSpace：exiftool 优先，回退 exif/getID3）
         $extracted = $this->metadata->extract($absOriginal, $mime);
 
-        // 3. 生成带水印派生图（图片直接处理；视频先用 ffmpeg 抽帧，未装 ffmpeg 则仅原片）
         $width = $height = null;
         $hasDerivatives = false;
 
@@ -80,7 +71,6 @@ class MediaStorageService
             }
         }
 
-        // 4. 建记录
         $tags = collect(explode(',', (string) ($meta['tags'] ?? '')))
             ->map(fn ($t) => trim($t))
             ->filter()
@@ -94,6 +84,8 @@ class MediaStorageService
             'description' => $meta['description'] ?? null,
             'tags' => $tags ?: null,
             'type' => $type,
+            'status' => MediaStatus::Active,
+            'index_status' => MediaStatus::Active,
             'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
             'original_ext' => $ext,
             'mime' => $mime,
@@ -109,6 +101,7 @@ class MediaStorageService
             'has_thumb' => $hasDerivatives,
             'has_preview' => $hasDerivatives,
             'uploaded_by' => $uploader->id,
+            'is_system_managed' => true,
         ]);
 
         $this->audit->log('media.uploaded', $uploader, 'media_resource', (string) $resource->id, [
@@ -121,10 +114,6 @@ class MediaStorageService
         return $resource;
     }
 
-    /**
-     * 视频抽帧（配置 ffmpeg 后可用，对齐 ResourceSpace 的 $ffmpeg_path）：
-     * 取第 1 秒画面为封面，供缩略图/水印预览流水线使用。
-     */
     private function extractVideoFrame(string $videoPath, string $framePath): ?string
     {
         $bin = config('visionsy.media.ffmpeg_path') ?: 'ffmpeg';
@@ -143,20 +132,70 @@ class MediaStorageService
         }
     }
 
-    /** 上传前重复素材提示（同 sha256 已存在）。 */
     public function findDuplicate(string $checksum): ?MediaResource
     {
         return MediaResource::query()->where('checksum_sha256', $checksum)->first();
     }
 
-    /** 物理删除资源目录 + 记录。 */
+    /**
+     * 删除媒体资源：系统管理的文件物理删除，外部扫描的文件仅从索引移除。
+     */
     public function delete(MediaResource $resource, User $actor): void
     {
-        $this->disk()->deleteDirectory("media/{$resource->storage_dir}");
         $id = (string) $resource->id;
         $title = $resource->title;
-        $resource->delete();
 
-        $this->audit->log('media.deleted', $actor, 'media_resource', $id, ['title' => $title]);
+        if ($resource->is_system_managed && $resource->isLegacy()) {
+            $this->disk()->deleteDirectory("media/{$resource->storage_dir}");
+            $resource->delete();
+
+            $this->audit->log('media.deleted', $actor, 'media_resource', $id, ['title' => $title]);
+
+            return;
+        }
+
+        if ($resource->is_system_managed && ! $resource->isLegacy()) {
+            $source = $resource->storageSource;
+            if ($source !== null && $source->isWritable()) {
+                $absPath = $this->pathResolver->resolveOriginalAbsolute($resource);
+                $this->pathResolver->validateWithinRoot($absPath, $source->root_path);
+
+                if (is_file($absPath)) {
+                    @unlink($absPath);
+                }
+
+                $derivativeVariants = [
+                    DerivativeVariant::Thumb,
+                    DerivativeVariant::Large,
+                    DerivativeVariant::WatermarkedJpeg,
+                    DerivativeVariant::WatermarkedPng,
+                ];
+                foreach ($derivativeVariants as $variant) {
+                    try {
+                        $derivativePath = $this->pathResolver->resolveDerivativeAbsolute($resource, $variant);
+                        if (is_file($derivativePath)) {
+                            @unlink($derivativePath);
+                        }
+                    } catch (\Throwable) {
+                        // 派生文件可能不存在
+                    }
+                }
+
+                $resource->delete();
+                $this->audit->log('media.deleted', $actor, 'media_resource', $id, ['title' => $title]);
+
+                return;
+            }
+        }
+
+        $resource->update([
+            'index_status' => MediaStatus::Missing->value,
+            'missing_at' => now(),
+        ]);
+
+        $this->audit->log('media.removed_from_index', $actor, 'media_resource', $id, [
+            'title' => $title,
+            'note' => '仅从索引移除，原文件未删除',
+        ]);
     }
 }

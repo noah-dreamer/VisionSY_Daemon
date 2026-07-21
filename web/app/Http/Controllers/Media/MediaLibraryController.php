@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Media;
 use App\Enums\MediaStatus;
 use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
+use App\Models\MediaGallery;
 use App\Models\MediaResource;
 use App\Services\AuditLogger;
 use App\Services\Media\MediaStorageService;
@@ -15,16 +16,52 @@ use Illuminate\View\View;
 
 class MediaLibraryController extends Controller
 {
-    /** 媒体库首页：搜索 + 网格浏览（游客可浏览缩略图，视配置）。 */
     public function index(Request $request): View
     {
         Gate::authorize('viewAny', MediaResource::class);
 
+        $view = $request->query('view');
+
+        if ($view === null) {
+            $hasGalleries = MediaGallery::visible()->exists();
+            $view = $hasGalleries ? 'galleries' : 'photos';
+        }
+
+        if ($view === 'galleries') {
+            return $this->galleryView($request);
+        }
+
+        return $this->allPhotosView($request);
+    }
+
+    private function galleryView(Request $request): View
+    {
+        $galleries = MediaGallery::query()
+            ->visible()
+            ->with(['storageSource', 'coverResource'])
+            ->withCount(['mediaResources' => function ($q) {
+                $q->where('index_status', '!=', MediaStatus::Missing->value)
+                    ->where('status', '!=', MediaStatus::Archived->value);
+            }])
+            ->ordered()
+            ->paginate(24)
+            ->withQueryString();
+
+        return view('media.index', [
+            'viewMode' => 'galleries',
+            'galleries' => $galleries,
+            'keyword' => (string) $request->query('q', ''),
+        ]);
+    }
+
+    private function allPhotosView(Request $request): View
+    {
         $type = $request->query('type');
         $canManageArchived = $request->user()?->isSystemAdmin() ?? false;
 
         $resources = MediaResource::query()
             ->with('uploader')
+            ->notMissing()
             ->when(! ($canManageArchived && $request->query('status') === 'archived'),
                 fn ($q) => $q->active(),
                 fn ($q) => $q->where('status', MediaStatus::Archived->value))
@@ -36,6 +73,7 @@ class MediaLibraryController extends Controller
             ->withQueryString();
 
         return view('media.index', [
+            'viewMode' => 'photos',
             'resources' => $resources,
             'keyword' => (string) $request->query('q', ''),
             'type' => $type,
@@ -44,7 +82,6 @@ class MediaLibraryController extends Controller
         ]);
     }
 
-    /** 素材详情页。 */
     public function show(Request $request, MediaResource $resource): View
     {
         Gate::authorize('view', $resource);
@@ -60,7 +97,6 @@ class MediaLibraryController extends Controller
         ]);
     }
 
-    /** 编辑元数据。 */
     public function edit(MediaResource $resource): View
     {
         Gate::authorize('manage', $resource);
@@ -92,7 +128,6 @@ class MediaLibraryController extends Controller
         return redirect()->route('media.show', $resource)->with('status', '素材信息已更新。');
     }
 
-    /** 归档 / 恢复。 */
     public function toggleArchive(Request $request, MediaResource $resource, AuditLogger $audit): RedirectResponse
     {
         Gate::authorize('manage', $resource);
@@ -106,7 +141,6 @@ class MediaLibraryController extends Controller
         return back()->with('status', $archived ? '素材已恢复。' : '素材已归档，普通用户不再可见。');
     }
 
-    /** 物理删除。 */
     public function destroy(Request $request, MediaResource $resource, MediaStorageService $storage): RedirectResponse
     {
         Gate::authorize('manage', $resource);

@@ -63,22 +63,45 @@ return [
     */
     'media' => [
         'direct_serve' => filter_var(env('MEDIA_DIRECT_SERVE', true), FILTER_VALIDATE_BOOL),
-        // 游客（未登录）是否允许浏览缩略图列表
         'guest_browse' => filter_var(env('MEDIA_GUEST_BROWSE', true), FILTER_VALIDATE_BOOL),
-        // 官微编辑（老师）是否允许上传（README：视情况）
         'teacher_can_upload' => filter_var(env('MEDIA_TEACHER_CAN_UPLOAD', true), FILTER_VALIDATE_BOOL),
         'max_upload_mb' => (int) env('MEDIA_MAX_UPLOAD_MB', 512),
-        // 水印文本：默认 ASCII（GD 内置字体不支持中文）；
-        // 提供 TTF 字体路径后可使用中文水印文本。
         'watermark_text' => env('MEDIA_WATERMARK_TEXT', 'VisionSY'),
-        'watermark_font' => env('MEDIA_WATERMARK_FONT'), // 可选：TTF 字体绝对路径
-        // 外部工具（对齐 ResourceSpace 的 $exiftool_path / $ffmpeg_path；留空则用 PATH，
-        // 未安装时自动回退：元数据 → PHP exif + getID3；视频封面 → 跳过）
+        'watermark_font' => env('MEDIA_WATERMARK_FONT'),
         'exiftool_path' => env('MEDIA_EXIFTOOL_PATH'),
         'ffmpeg_path' => env('MEDIA_FFMPEG_PATH'),
 
         'preview_max_edge' => (int) env('MEDIA_PREVIEW_MAX_EDGE', 1600),
         'thumb_max_edge' => (int) env('MEDIA_THUMB_MAX_EDGE', 640),
+
+        'allowed_roots' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('MEDIA_ALLOWED_ROOTS', ''))
+        ))),
+
+        'scan_exclude_patterns' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('MEDIA_SCAN_EXCLUDE', '._*,Thumbs.db,.DS_Store,@eaDir'))
+        ))),
+
+        'scanner' => [
+            'batch_size' => (int) env('MEDIA_SCAN_BATCH_SIZE', 100),
+            'checksum_changed_only' => filter_var(env('MEDIA_SCAN_CHECKSUM_CHANGED', true), FILTER_VALIDATE_BOOL),
+        ],
+
+        'raw' => [
+            'extensions' => [
+                'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2',
+                'dng', 'orf', 'pef', 'raf', 'rw2', '3fr', 'ari', 'bay',
+                'cap', 'dcr', 'drf', 'eip', 'erf', 'fff', 'iiq', 'k25',
+                'kdc', 'mdc', 'mef', 'mos', 'mrw', 'obm', 'ori', 'ptx',
+                'pxn', 'r3d', 'raw', 'rwl', 'rwz', 'srw', 'x3f',
+            ],
+            'converter' => env('MEDIA_RAW_CONVERTER', 'exiftool_preview'),
+            'min_preview_bytes' => (int) env('MEDIA_RAW_MIN_PREVIEW_BYTES', 1024),
+        ],
+
+        'watermark_max_edge' => (int) env('MEDIA_WATERMARK_MAX_EDGE', 3200),
     ],
 
     // ---------------- 登录人机验证（PlayCaptcha：滑块拼图 + 轨迹校验） ----------------
