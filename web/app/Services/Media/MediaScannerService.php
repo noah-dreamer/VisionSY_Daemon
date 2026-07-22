@@ -69,7 +69,13 @@ class MediaScannerService
             ->pluck('id');
 
         foreach ($pendingResources as $resourceId) {
-            GenerateMediaDerivatives::dispatch($resourceId);
+            try {
+                GenerateMediaDerivatives::dispatch($resourceId);
+            } catch (Throwable $e) {
+                Log::warning("派生生成任务调度失败 #{$resourceId}", [
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         $missing = $this->markMissingFiles($gallery, $discovered);
@@ -111,7 +117,8 @@ class MediaScannerService
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
-        $galleryPathLen = strlen(rtrim($galleryPath, '/')) + 1;
+        $normalizedGalleryPath = rtrim(str_replace('\\', '/', $galleryPath), '/') . '/';
+        $galleryPathLen = strlen($normalizedGalleryPath);
 
         foreach ($iterator as $item) {
             $itemPath = str_replace('\\', '/', $item->getPathname());
@@ -151,7 +158,7 @@ class MediaScannerService
             }
 
             $absPath = $item->getPathname();
-            $relPath = str_replace('\\', '/', substr($absPath, $galleryPathLen));
+            $relPath = substr($itemPath, $galleryPathLen);
 
             try {
                 $this->pathResolver->validateRelativePath($relPath);
@@ -180,7 +187,7 @@ class MediaScannerService
     private function indexOrUpdateFile(MediaStorageSource $source, MediaGallery $gallery, array $fileInfo): string
     {
         $relativePath = $fileInfo['relative_path'];
-        $fileMtime = \Illuminate\Support\Carbon::createFromTimestamp($fileInfo['mtime']);
+        $fileMtime = \Illuminate\Support\Carbon::createFromTimestamp($fileInfo['mtime'], 'UTC');
 
         $existing = MediaResource::query()
             ->where('storage_source_id', $source->id)
@@ -190,12 +197,7 @@ class MediaScannerService
         if ($existing !== null) {
             $needsUpdate = false;
 
-            if ($existing->source_size_bytes !== $fileInfo['size']) {
-                $needsUpdate = true;
-            }
-
-            if ($existing->source_modified_at === null ||
-                $existing->source_modified_at->timestamp !== $fileInfo['mtime']) {
+            if ($existing->source_identity !== $fileInfo['identity']) {
                 $needsUpdate = true;
             }
 

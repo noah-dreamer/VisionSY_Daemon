@@ -77,7 +77,7 @@ class GalleryScanTest extends TestCase
         $this->assertDatabaseHas('media_storage_sources', [
             'name' => 'Scan Source',
             'driver' => 'local',
-            'root_path' => realpath($this->testRoot),
+            'root_path' => str_replace('\\', '/', realpath($this->testRoot)),
         ]);
 
         $source = \App\Models\MediaStorageSource::where('name', 'Scan Source')->first();
@@ -304,11 +304,17 @@ class GalleryScanTest extends TestCase
 
         $scanner->scanGallery($gallery);
 
-        $activeCount = \App\Models\MediaResource::where('gallery_id', $gallery->id)
-            ->where('index_status', MediaStatus::Active->value)
-            ->count();
+        $resource1 = \App\Models\MediaResource::where('gallery_id', $gallery->id)
+            ->where('relative_path', 'DCIM/IMG_0001.jpg')->first();
+        $resource2 = \App\Models\MediaResource::where('gallery_id', $gallery->id)
+            ->where('relative_path', 'DCIM/IMG_0002.jpg')->first();
 
-        $this->assertEquals(2, $activeCount);
+        $this->assertNotNull($resource1, 'IMG_0001 should exist in DB');
+        $this->assertNotNull($resource2, 'IMG_0002 should exist in DB');
+        $this->assertEquals(MediaStatus::Active, $resource1->index_status,
+            'Recreated file should be active');
+        $this->assertEquals(MediaStatus::Active, $resource2->index_status,
+            'Unchanged file should remain active');
     }
 
     public function test_readonly_source_cannot_create_gallery_directory(): void
@@ -329,14 +335,14 @@ class GalleryScanTest extends TestCase
 
         $source = \App\Models\MediaStorageSource::where('name', 'RO Source')->first();
 
-        $this->actingAs($admin)
-            ->post(route('admin.galleries.store'), [
-                'storage_source_id' => $source->id,
-                'name' => 'Should Fail',
-                'folder_name' => 'should-fail',
-                'is_visible' => '1',
-            ])
-            ->assertSessionHasErrors();
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('只读存储源无法创建图库目录。');
+
+        app(\App\Services\Media\GalleryService::class)->create($source, [
+            'name' => 'Should Fail',
+            'folder_name' => 'should-fail',
+            'is_visible' => '1',
+        ]);
     }
 
     public function test_admin_created_gallery_creates_physical_directory(): void

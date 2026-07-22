@@ -101,7 +101,7 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
     }
 
     /**
-     * 检查源文件是否在处理期间被修改。
+     * 检查源文件是否在处理期间被修改（通过 source_identity 哈希比较）。
      */
     private function validateSourceUnchanged(MediaResource $resource, PathResolverService $pathResolver): void
     {
@@ -111,15 +111,15 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
             throw new \RuntimeException('源文件不可访问。');
         }
 
-        $currentSize = filesize($absPath);
-        $currentMtime = filemtime($absPath);
-
-        if ($resource->source_size_bytes !== null && $resource->source_size_bytes !== $currentSize) {
-            throw new \RuntimeException('源文件在处理期间大小发生变化，结果可能过期。');
+        if ($resource->source_identity === null) {
+            return;
         }
 
-        if ($resource->source_modified_at !== null
-            && abs($resource->source_modified_at->timestamp - $currentMtime) > 1) {
+        $currentSize = filesize($absPath);
+        $currentMtime = filemtime($absPath);
+        $currentIdentity = hash('sha256', str_replace('\\', '/', $resource->relative_path).'|'.$currentSize.'|'.$currentMtime);
+
+        if (! hash_equals($resource->source_identity, $currentIdentity)) {
             throw new \RuntimeException('源文件在处理期间发生变化，结果可能过期。');
         }
     }

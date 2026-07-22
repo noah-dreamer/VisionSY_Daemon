@@ -72,7 +72,7 @@ class MediaGallery extends Model
 
     public function fullPath(): string
     {
-        return rtrim($this->storageSource->root_path, '/').'/'.ltrim($this->relative_path, '/');
+        return rtrim(str_replace('\\', '/', $this->storageSource->root_path), '/').'/'.ltrim($this->relative_path, '/');
     }
 
     public function derivativeRootPath(): string

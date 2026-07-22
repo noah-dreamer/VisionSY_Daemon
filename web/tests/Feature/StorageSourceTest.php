@@ -65,7 +65,7 @@ class StorageSourceTest extends TestCase
         $this->assertDatabaseHas('media_storage_sources', [
             'name' => 'Test Source',
             'driver' => 'local',
-            'root_path' => realpath($this->testRoot),
+            'root_path' => str_replace('\\', '/', realpath($this->testRoot)),
         ]);
     }
 

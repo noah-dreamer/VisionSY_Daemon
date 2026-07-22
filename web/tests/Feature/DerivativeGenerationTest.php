@@ -234,7 +234,11 @@ class DerivativeGenerationTest extends TestCase
         $this->assertNotNull($resource);
         $this->assertTrue($resource->is_raw);
 
-        \App\Jobs\Media\GenerateMediaDerivatives::dispatchSync($resource->id);
+        try {
+            \App\Jobs\Media\GenerateMediaDerivatives::dispatchSync($resource->id);
+        } catch (\RuntimeException $e) {
+            // RAW 转换预期失败
+        }
 
         $resource->refresh();
         $this->assertEquals(DerivativeStatus::Failed->value, $resource->derivative_status,
@@ -243,7 +247,7 @@ class DerivativeGenerationTest extends TestCase
             'RAW 转换失败时应记录 derivative_error');
 
         // 文件仍然可以被扫描和引用
-        $this->assertEquals(MediaStatus::Active->value, $resource->index_status);
+        $this->assertEquals(MediaStatus::Active, $resource->index_status);
     }
 
     /* ---------------- 下载原图字节一致性 ---------------- */
@@ -275,9 +279,8 @@ class DerivativeGenerationTest extends TestCase
         $this->assertNotNull($gallery);
 
         $testFile = $galleryDir.'/original-file.jpg';
-        $originalBytes = str_repeat("\x00\x01\x02\x03", 256)."\xff\xd8\xff\xe0\x00\x10JFIF\x00";
-        $originalBytes .= str_repeat("\x00\x01\xff\xd9", 243);
-        file_put_contents($testFile, $originalBytes);
+        $this->createUploadedJpeg($testFile, 100, 100);
+        $originalBytes = file_get_contents($testFile);
 
         $scanner = app(\App\Services\Media\MediaScannerService::class);
         $result = $scanner->scanGallery($gallery);

@@ -142,6 +142,7 @@ class PathResolverServiceTest extends TestCase
     {
         $tmp = sys_get_temp_dir().'/visionsy-root-'.bin2hex(random_bytes(4));
         mkdir($tmp, 0775, true);
+        mkdir($tmp.'/gallery', 0775, true);
         try {
             $this->expectNotToPerformAssertions();
             $this->resolver->validateWithinRoot($tmp.'/gallery/_visionsy/preview/thumb/file.jpg', $tmp);
@@ -164,6 +165,10 @@ class PathResolverServiceTest extends TestCase
 
     public function test_validate_within_root_with_symlink_escape_uses_realpath(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('符号链接逃逸测试需要 Linux 的 /etc。');
+        }
+
         $tmp = sys_get_temp_dir().'/visionsy-root-'.bin2hex(random_bytes(4));
         mkdir($tmp, 0775, true);
         $link = $tmp.'/link';
@@ -185,7 +190,8 @@ class PathResolverServiceTest extends TestCase
         mkdir($tmp, 0775, true);
         try {
             $result = $this->resolver->resolvePath($tmp, 'some-subpath');
-            $this->assertStringStartsWith($tmp, $result);
+            $expectedPrefix = str_replace('\\', '/', $tmp);
+            $this->assertStringStartsWith($expectedPrefix, $result);
         } finally {
             @rmdir($tmp);
         }

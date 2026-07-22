@@ -98,7 +98,7 @@ class StorageSourceService
             }
         }
 
-        return $real;
+        return str_replace('\\', '/', $real);
     }
 
     public function verifyReadable(MediaStorageSource $source): bool

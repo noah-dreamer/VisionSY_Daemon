@@ -121,7 +121,7 @@ class PathResolverService
      */
     public function resolvePath(string $rootPath, string ...$segments): string
     {
-        $rootPath = rtrim($rootPath, '/');
+        $rootPath = rtrim(str_replace('\\', '/', $rootPath), '/');
         $combined = $rootPath;
         foreach ($segments as $segment) {
             $combined .= '/'.ltrim($this->normalizePath($segment), '/');
@@ -171,10 +171,20 @@ class PathResolverService
         }
 
         $parentDir = dirname($resolvedPath);
-        $parentReal = realpath($parentDir);
+        $parentReal = false;
+        $walkDir = $parentDir;
+
+        while ($walkDir !== '' && $walkDir !== '.' && $walkDir !== '/') {
+            $parentReal = realpath($walkDir);
+            if ($parentReal !== false) {
+                break;
+            }
+            $walkDir = dirname($walkDir);
+        }
+
         if ($parentReal === false) {
             throw new RuntimeException(sprintf(
-                '目标路径 %s 及其父目录均不存在，无法完成路径边界校验。',
+                '目标路径 %s 及其所有上级目录均不存在，无法完成路径边界校验。',
                 $resolvedPath
             ));
         }

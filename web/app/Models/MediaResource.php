@@ -167,6 +167,6 @@ class MediaResource extends Model
 
     public function isMissing(): bool
     {
-        return $this->index_status === MediaStatus::Missing->value;
+        return $this->index_status?->value === MediaStatus::Missing->value;
     }
 }
