@@ -19,6 +19,15 @@ class MediaStorageSource extends Model
         'is_enabled',
         'is_read_only',
         'is_managed',
+        'smb_server',
+        'smb_share',
+        'smb_username',
+        'smb_domain',
+        'smb_version',
+        'nfs_server',
+        'nfs_export',
+        'nfs_version',
+        'auto_mount',
         'scan_recursive',
         'last_scan_started_at',
         'last_scan_finished_at',
@@ -27,15 +36,21 @@ class MediaStorageSource extends Model
         'created_by',
     ];
 
+    protected $hidden = [
+        'smb_password',
+    ];
+
     protected function casts(): array
     {
         return [
             'is_enabled' => 'boolean',
             'is_read_only' => 'boolean',
             'is_managed' => 'boolean',
+            'auto_mount' => 'boolean',
             'scan_recursive' => 'boolean',
             'last_scan_started_at' => 'datetime',
             'last_scan_finished_at' => 'datetime',
+            'smb_password' => 'encrypted',
             'driver' => StorageSourceType::class,
         ];
     }
@@ -111,5 +126,26 @@ class MediaStorageSource extends Model
             'last_scan_status' => ScanStatus::Failed->value,
             'last_scan_error' => mb_substr($error, 0, 2000),
         ]);
+    }
+
+    public function setSambaPassword(string $password): void
+    {
+        if ($password !== '') {
+            $this->smb_password = $password;
+        }
+    }
+
+    public function mountConfig(): array
+    {
+        return array_filter([
+            'server' => $this->smb_server,
+            'share' => $this->smb_share,
+            'username' => $this->smb_username,
+            'domain' => $this->smb_domain,
+            'version' => $this->smb_version,
+            'nfs_server' => $this->nfs_server,
+            'nfs_export' => $this->nfs_export,
+            'nfs_version' => $this->nfs_version,
+        ], fn ($v) => $v !== null);
     }
 }

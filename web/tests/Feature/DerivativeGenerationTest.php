@@ -139,7 +139,7 @@ class DerivativeGenerationTest extends TestCase
         \App\Jobs\Media\GenerateMediaDerivatives::dispatchSync($resource->id);
 
         $resource->refresh();
-        $this->assertEquals(DerivativeStatus::Completed->value, $resource->derivative_status);
+        $this->assertEquals(DerivativeStatus::Ready->value, $resource->derivative_status);
         $this->assertTrue($resource->has_thumb);
         $this->assertTrue($resource->has_preview);
         $this->assertNotNull($resource->width);
@@ -344,7 +344,7 @@ class DerivativeGenerationTest extends TestCase
         \App\Jobs\Media\GenerateMediaDerivatives::dispatchSync($resource->id);
 
         $resource->refresh();
-        $this->assertEquals(DerivativeStatus::Completed->value, $resource->derivative_status);
+        $this->assertEquals(DerivativeStatus::Ready->value, $resource->derivative_status);
 
         $pathResolver = app(PathResolverService::class);
 
@@ -409,7 +409,7 @@ class DerivativeGenerationTest extends TestCase
         \App\Jobs\Media\GenerateMediaDerivatives::dispatchSync($resource->id);
 
         $resource->refresh();
-        $this->assertEquals(DerivativeStatus::Completed->value, $resource->derivative_status);
+        $this->assertEquals(DerivativeStatus::Ready->value, $resource->derivative_status);
 
         $pathResolver = app(PathResolverService::class);
         $this->assertFileExists($pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Thumb));

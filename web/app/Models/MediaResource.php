@@ -45,6 +45,13 @@ class MediaResource extends Model
         'index_status',
         'derivative_status',
         'derivative_error',
+        'derivative_thumb_at',
+        'derivative_large_at',
+        'derivative_wm_jpeg_at',
+        'derivative_wm_png_at',
+        'derivative_attempts',
+        'derivative_converter',
+        'derivative_converter_version',
         'missing_at',
         'last_seen_at',
     ];
@@ -66,6 +73,10 @@ class MediaResource extends Model
             'has_preview' => 'boolean',
             'is_raw' => 'boolean',
             'is_system_managed' => 'boolean',
+            'derivative_thumb_at' => 'datetime',
+            'derivative_large_at' => 'datetime',
+            'derivative_wm_jpeg_at' => 'datetime',
+            'derivative_wm_png_at' => 'datetime',
         ];
     }
 
@@ -163,6 +174,31 @@ class MediaResource extends Model
     public function derivativeStatusEnum(): ?DerivativeStatus
     {
         return DerivativeStatus::tryFrom((string) $this->derivative_status);
+    }
+
+    public function hasDerivative(string $variant): bool
+    {
+        $col = match ($variant) {
+            'thumb' => 'derivative_thumb_at',
+            'large' => 'derivative_large_at',
+            'watermarked_jpeg' => 'derivative_wm_jpeg_at',
+            'watermarked_png' => 'derivative_wm_png_at',
+            default => null,
+        };
+
+        return $col !== null && $this->{$col} !== null;
+    }
+
+    public function readyVariantCount(): int
+    {
+        $n = 0;
+        foreach (['derivative_thumb_at', 'derivative_large_at', 'derivative_wm_jpeg_at', 'derivative_wm_png_at'] as $col) {
+            if ($this->{$col} !== null) {
+                $n++;
+            }
+        }
+
+        return $n;
     }
 
     public function isMissing(): bool

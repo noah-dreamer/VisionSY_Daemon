@@ -39,6 +39,16 @@ class StorageSourceController extends Controller
             'is_writable' => ['boolean'],
             'is_managed' => ['boolean'],
             'scan_recursive' => ['boolean'],
+            'auto_mount' => ['boolean'],
+            'smb_server' => ['nullable', 'string', 'max:255'],
+            'smb_share' => ['nullable', 'string', 'max:255'],
+            'smb_username' => ['nullable', 'string', 'max:120'],
+            'smb_password' => ['nullable', 'string', 'max:255'],
+            'smb_domain' => ['nullable', 'string', 'max:120'],
+            'smb_version' => ['nullable', 'string', 'max:10'],
+            'nfs_server' => ['nullable', 'string', 'max:255'],
+            'nfs_export' => ['nullable', 'string', 'max:512'],
+            'nfs_version' => ['nullable', 'string', 'max:10'],
         ]);
 
         try {

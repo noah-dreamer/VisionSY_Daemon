@@ -83,6 +83,17 @@ class MediaFileController extends Controller
         return $this->deliver($request, $resource, 'watermarked');
     }
 
+    public function downloadWatermarkedPng(Request $request, MediaResource $resource): Response
+    {
+        Gate::authorize('downloadWatermarked', $resource);
+
+        if (! $resource->has_preview) {
+            abort(404, '该素材没有可下载的压缩图。');
+        }
+
+        return $this->deliver($request, $resource, 'watermarked_png');
+    }
+
     public function downloadOriginal(Request $request, MediaResource $resource): Response
     {
         Gate::authorize('downloadOriginal', $resource);
@@ -162,7 +173,19 @@ class MediaFileController extends Controller
     private function sendFile(MediaResource $resource, string $variant): Response
     {
         if ($variant === 'original') {
-            if ($resource->isLegacy()) {
+        if ($variant === 'watermarked_png') {
+            $absPath = $this->pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedPng);
+            if (! is_file($absPath)) {
+                abort(404, 'PNG 水印图不可用。');
+            }
+            $base = pathinfo($resource->original_name, PATHINFO_FILENAME);
+
+            return response()->download($absPath, "{$base}_watermarked.png", [
+                'Content-Type' => 'image/png',
+            ]);
+        }
+
+        if ($resource->isLegacy()) {
                 $disk = $this->storage->disk();
                 $path = $resource->originalRelativePath();
                 abort_unless($disk->exists($path), 404);

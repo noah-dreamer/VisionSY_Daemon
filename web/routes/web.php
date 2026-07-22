@@ -83,6 +83,7 @@ Route::prefix('media')->name('media.')->group(function () {
         Route::get('/{resource}/preview', [MediaFileController::class, 'preview'])->name('preview');
         Route::get('/{resource}/download/original', [MediaFileController::class, 'downloadOriginal'])->name('download.original');
         Route::get('/{resource}/download/watermarked', [MediaFileController::class, 'downloadWatermarked'])->name('download.watermarked');
+        Route::get('/{resource}/download/watermarked-png', [MediaFileController::class, 'downloadWatermarkedPng'])->name('download.watermarked-png');
 
         Route::get('/{resource}/edit', [MediaLibraryController::class, 'edit'])->name('edit');
         Route::put('/{resource}', [MediaLibraryController::class, 'update'])->name('update');
@@ -121,6 +122,9 @@ Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->gr
     Route::delete('/storage-sources/{storageSource}', [StorageSourceController::class, 'destroy'])->name('storage-sources.destroy');
     Route::post('/storage-sources/{storageSource}/verify', [StorageSourceController::class, 'verify'])->name('storage-sources.verify');
     Route::post('/storage-sources/{storageSource}/scan', [StorageSourceController::class, 'scan'])->name('storage-sources.scan');
+    Route::post('/storage-sources/{storageSource}/mount', [App\Http\Controllers\Admin\MountController::class, 'mount'])->name('storage-sources.mount');
+    Route::post('/storage-sources/{storageSource}/unmount', [App\Http\Controllers\Admin\MountController::class, 'unmount'])->name('storage-sources.unmount');
+    Route::post('/storage-sources/{storageSource}/test-connection', [App\Http\Controllers\Admin\MountController::class, 'testConnection'])->name('storage-sources.test-connection');
 
     Route::get('/galleries', [AdminGalleryController::class, 'index'])->name('galleries.index');
     Route::get('/galleries/create', [AdminGalleryController::class, 'create'])->name('galleries.create');
@@ -129,6 +133,9 @@ Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->gr
     Route::put('/galleries/{gallery}', [AdminGalleryController::class, 'update'])->name('galleries.update');
     Route::delete('/galleries/{gallery}', [AdminGalleryController::class, 'destroy'])->name('galleries.destroy');
     Route::post('/galleries/{gallery}/scan', [AdminGalleryController::class, 'scan'])->name('galleries.scan');
+
+    Route::post('/media/{mediaResource}/retry-derivatives', [App\Http\Controllers\Admin\DerivativeRetryController::class, 'retryResource'])->name('media.retry-derivatives');
+    Route::post('/galleries/{gallery}/retry-derivatives', [App\Http\Controllers\Admin\DerivativeRetryController::class, 'retryGallery'])->name('galleries.retry-derivatives');
 
     Route::get('/campus-ips', [CampusIpRangeController::class, 'index'])->name('campus-ips.index');
     Route::post('/campus-ips', [CampusIpRangeController::class, 'store'])->name('campus-ips.store');

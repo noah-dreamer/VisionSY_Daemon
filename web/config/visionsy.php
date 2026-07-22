@@ -73,6 +73,10 @@ return [
 
         'preview_max_edge' => (int) env('MEDIA_PREVIEW_MAX_EDGE', 1600),
         'thumb_max_edge' => (int) env('MEDIA_THUMB_MAX_EDGE', 640),
+        'preview_jpeg_quality' => (int) env('MEDIA_PREVIEW_JPEG_QUALITY', 82),
+        'thumb_jpeg_quality' => (int) env('MEDIA_THUMB_JPEG_QUALITY', 75),
+        'watermark_jpeg_quality' => (int) env('MEDIA_WATERMARK_JPEG_QUALITY', 85),
+        'watermark_png_compression' => (int) env('MEDIA_WATERMARK_PNG_COMPRESSION', 6),
 
         'allowed_roots' => array_values(array_filter(array_map(
             'trim',
@@ -99,9 +103,20 @@ return [
             ],
             'converter' => env('MEDIA_RAW_CONVERTER', 'exiftool_preview'),
             'min_preview_bytes' => (int) env('MEDIA_RAW_MIN_PREVIEW_BYTES', 1024),
+            'preview_tags' => ['PreviewImage', 'JpgFromRaw', 'ThumbnailImage'],
+        ],
+
+        'converters' => [
+            'dcraw' => env('MEDIA_CONVERTER_DCRAW'),
+            'darktable_cli' => env('MEDIA_CONVERTER_DARKTABLE_CLI'),
+            'rawtherapee_cli' => env('MEDIA_CONVERTER_RAWTHERAPEE_CLI'),
+            'imagemagick' => env('MEDIA_CONVERTER_IMAGEMAGICK'),
         ],
 
         'watermark_max_edge' => (int) env('MEDIA_WATERMARK_MAX_EDGE', 3200),
+
+        'mount_helper_path' => env('MEDIA_MOUNT_HELPER_PATH', '/usr/local/bin/visionsy-mount'),
+        'mount_base' => env('MEDIA_MOUNT_BASE', '/mnt/visionsy-media'),
     ],
 
     // ---------------- 登录人机验证（PlayCaptcha：滑块拼图 + 轨迹校验） ----------------

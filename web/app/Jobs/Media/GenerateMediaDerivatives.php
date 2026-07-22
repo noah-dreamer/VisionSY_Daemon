@@ -5,8 +5,8 @@ namespace App\Jobs\Media;
 use App\Enums\DerivativeStatus;
 use App\Models\MediaResource;
 use App\Services\Media\ImageDerivativeService;
+use App\Services\Media\MediaPreviewConverter;
 use App\Services\Media\PathResolverService;
-use App\Services\Media\RawConverterInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,15 +37,11 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
     public function handle(
         PathResolverService $pathResolver,
         ImageDerivativeService $imageService,
-        RawConverterInterface $rawConverter,
+        MediaPreviewConverter $converter,
     ): void {
         $resource = MediaResource::find($this->resourceId);
 
-        if ($resource === null) {
-            return;
-        }
-
-        if ($resource->isLegacy()) {
+        if ($resource === null || $resource->isLegacy()) {
             return;
         }
 
@@ -65,16 +61,28 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
         try {
             $this->validateSourceUnchanged($resource, $pathResolver);
 
-            $resource->update(['derivative_status' => DerivativeStatus::Processing->value]);
-
-            $originalPath = $pathResolver->resolveOriginalAbsolute($resource);
+            $resource->update([
+                'derivative_status' => DerivativeStatus::Processing->value,
+                'derivative_attempts' => ($resource->derivative_attempts ?? 0) + 1,
+            ]);
 
             if ($resource->is_raw) {
-                $convertedPath = $this->convertRawToJpeg($resource, $originalPath, $pathResolver, $rawConverter);
-                $dim = $imageService->generateAllDerivatives($convertedPath, $resource, $pathResolver);
-                @unlink($convertedPath);
+                $result = $converter->toJpeg(
+                    $pathResolver->resolveOriginalAbsolute($resource),
+                    sys_get_temp_dir(),
+                    (int) config('visionsy.media.preview_max_edge', 1600)
+                );
+                $sourceJpeg = $result['path'];
+                $converterVersion = $converter->version();
             } else {
-                $dim = $imageService->generateAllDerivatives($originalPath, $resource, $pathResolver);
+                $sourceJpeg = $pathResolver->resolveOriginalAbsolute($resource);
+                $converterVersion = 'native';
+            }
+
+            $dim = $imageService->generateAllDerivatives($sourceJpeg, $resource, $pathResolver);
+
+            if ($resource->is_raw && isset($result['path'])) {
+                @unlink($result['path']);
             }
 
             $resource->update([
@@ -82,32 +90,32 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
                 'height' => $dim['height'],
                 'has_thumb' => true,
                 'has_preview' => true,
-                'derivative_status' => DerivativeStatus::Completed->value,
+                'derivative_status' => DerivativeStatus::Ready->value,
                 'derivative_error' => null,
+                'derivative_thumb_at' => now(),
+                'derivative_large_at' => now(),
+                'derivative_wm_jpeg_at' => now(),
+                'derivative_wm_png_at' => now(),
+                'derivative_converter' => $converter->name(),
+                'derivative_converter_version' => $converterVersion,
             ]);
         } catch (Throwable $e) {
-            Log::error("派生图生成失败 #{$resource->id}", [
-                'error' => $e->getMessage(),
-                'is_raw' => $resource->is_raw,
-            ]);
-
-            $resource->update([
-                'derivative_status' => DerivativeStatus::Failed->value,
-                'derivative_error' => mb_substr($e->getMessage(), 0, 2000),
-            ]);
-
+            $this->recordFailure($resource, $e);
             throw $e;
         }
     }
 
-    /**
-     * 检查源文件是否在处理期间被修改（通过 source_identity 哈希比较）。
-     */
     private function validateSourceUnchanged(MediaResource $resource, PathResolverService $pathResolver): void
     {
         $absPath = $pathResolver->resolveOriginalAbsolute($resource);
 
         if (! is_file($absPath) || ! is_readable($absPath)) {
+            $resource->update([
+                'index_status' => \App\Enums\MediaStatus::Missing->value,
+                'missing_at' => now(),
+                'derivative_status' => DerivativeStatus::Failed->value,
+                'derivative_error' => '源文件丢失。',
+            ]);
             throw new \RuntimeException('源文件不可访问。');
         }
 
@@ -124,21 +132,20 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    /**
-     * 将 RAW 文件转换为 JPEG。
-     *
-     * @return string 转换后的 JPEG 临时文件路径
-     */
-    private function convertRawToJpeg(
-        MediaResource $resource,
-        string $originalPath,
-        PathResolverService $pathResolver,
-        RawConverterInterface $rawConverter,
-    ): string {
-        $convertedPath = sys_get_temp_dir().'/visionsy-raw-'.$resource->id.'-'.bin2hex(random_bytes(8)).'.jpg';
+    private function recordFailure(MediaResource $resource, Throwable $e): void
+    {
+        Log::error("派生图生成失败 #{$resource->id}", [
+            'error' => $e->getMessage(),
+            'is_raw' => $resource->is_raw,
+            'attempt' => ($resource->derivative_attempts ?? 0) + 1,
+        ]);
 
-        $rawConverter->convert($originalPath, $convertedPath, (int) config('visionsy.media.preview_max_edge', 1600));
+        $hasAnyVariant = $resource->readyVariantCount() > 0;
+        $status = $hasAnyVariant ? DerivativeStatus::Partial->value : DerivativeStatus::Failed->value;
 
-        return $convertedPath;
+        $resource->update([
+            'derivative_status' => $status,
+            'derivative_error' => mb_substr($e->getMessage(), 0, 2000),
+        ]);
     }
 }

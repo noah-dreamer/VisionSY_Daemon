@@ -18,7 +18,7 @@ class StorageSourceService
     {
         $rootPath = $this->validateAndNormalizeRootPath($data['root_path'], $data['driver'] ?? 'local');
 
-        return MediaStorageSource::create([
+        $source = MediaStorageSource::create([
             'name' => $data['name'],
             'driver' => $data['driver'] ?? 'local',
             'root_path' => $rootPath,
@@ -26,8 +26,24 @@ class StorageSourceService
             'is_read_only' => ! ($data['is_writable'] ?? false),
             'is_managed' => $data['is_managed'] ?? false,
             'scan_recursive' => $data['scan_recursive'] ?? true,
+            'auto_mount' => $data['auto_mount'] ?? false,
+            'smb_server' => $data['smb_server'] ?? null,
+            'smb_share' => $data['smb_share'] ?? null,
+            'smb_username' => $data['smb_username'] ?? null,
+            'smb_domain' => $data['smb_domain'] ?? null,
+            'smb_version' => $data['smb_version'] ?? null,
+            'nfs_server' => $data['nfs_server'] ?? null,
+            'nfs_export' => $data['nfs_export'] ?? null,
+            'nfs_version' => $data['nfs_version'] ?? null,
             'created_by' => $creator->id,
         ]);
+
+        if (! empty($data['smb_password'] ?? '')) {
+            $source->smb_password = $data['smb_password'];
+            $source->save();
+        }
+
+        return $source;
     }
 
     public function update(MediaStorageSource $source, array $data): MediaStorageSource

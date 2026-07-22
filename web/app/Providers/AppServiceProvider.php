@@ -35,6 +35,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Media\RawConverterInterface::class,
             \App\Services\Media\ExifToolRawConverter::class
         );
+        $this->app->bind(
+            \App\Services\Media\MediaPreviewConverter::class,
+            \App\Services\Media\ExifToolPreviewConverter::class
+        );
+        $this->app->bind(
+            \App\Services\Media\MediaMountManager::class,
+            \App\Services\Media\ExistingPathMountDriver::class
+        );
     }
 
     public function boot(): void
