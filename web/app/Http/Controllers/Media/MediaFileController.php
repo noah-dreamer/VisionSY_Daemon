@@ -26,6 +26,7 @@ class MediaFileController extends Controller
 
     public function thumb(MediaResource $resource): Response
     {
+        $resource->loadMissing(['storageSource', 'gallery']);
         Gate::authorize('view', $resource);
 
         if (! $resource->has_thumb) {
@@ -50,6 +51,7 @@ class MediaFileController extends Controller
 
     public function preview(MediaResource $resource): Response
     {
+        $resource->loadMissing(['storageSource', 'gallery']);
         Gate::authorize('preview', $resource);
 
         if (! $resource->has_preview) {
@@ -172,6 +174,8 @@ class MediaFileController extends Controller
 
     private function sendFile(MediaResource $resource, string $variant): Response
     {
+        $resource->loadMissing(['storageSource', 'gallery']);
+
         if ($variant === 'watermarked_png') {
             $absPath = $this->pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedPng);
             if (! is_file($absPath)) {

@@ -39,5 +39,11 @@ export default defineConfig({
             '/playcaptcha.svg': 'http://app:80',
             '/toys': 'http://app:80',
         },
+        watch: {
+            // Windows Docker bind mount 不支持文件事件，使用轮询。
+            // 默认 100ms 轮询间隔对 CPU 压力过大；改用 2s 间隔，仍可在数秒内感知变更。
+            usePolling: true,
+            interval: 2000,
+        },
     },
 });

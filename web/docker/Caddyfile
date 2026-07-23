@@ -21,5 +21,13 @@
 
 	encode gzip zstd
 
+	@buildAssets path /build/*
+	@toyAssets path /toys/*
+	@captchaSvg path /playcaptcha.svg
+
+	header @buildAssets Cache-Control "public, max-age=31536000, immutable"
+	header @toyAssets Cache-Control "public, max-age=604800"
+	header @captchaSvg Cache-Control "public, max-age=604800"
+
 	php_server
 }

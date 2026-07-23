@@ -24,6 +24,10 @@ x-dev-source: &dev-source
     - ../../web:/app
     - /app/vendor
     - /app/node_modules
+    # 开发 PHP 配置（OPcache revalidate_freq=2，允许 proc_open），覆盖镜像内置的生产 ini
+    - ../../web/docker/php.dev.ini:/usr/local/etc/php/conf.d/visionsy.ini:ro
+    # 开发 Caddyfile（含静态资源缓存头等），覆盖镜像内置版本
+    - ../../web/docker/Caddyfile:/etc/caddy/Caddyfile:ro
 
 services:
   app:
@@ -42,19 +46,10 @@ services:
   vite:
     image: node:22-alpine
     working_dir: /app
-    # 使用统一入口脚本启动 Vite：
-    #   - 清理上一次残留的 public/hot
-    #   - npm install（node_modules 卷保护，幂等）
-    #   - 启动 Vite 并自动把 public/hot 修正为 localhost（取代 Docker 内部 0.0.0.0），
-    #     确保浏览器可以访问 HMR 与资源。
-    # 注意：bind mount 未挂载 docker/ 子目录时脚本无法执行，请确认 compose.dev.yaml 的 volumes 配置。
     command: ["sh", "/app/docker/vite-dev.sh"]
     volumes:
       - ../../web:/app
       - vite_node_modules:/app/node_modules
-    environment:
-      # Windows / Docker Desktop 下文件事件不可靠，启用轮询监听
-      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${VITE_PORT:-5173}:5173"
     networks:
