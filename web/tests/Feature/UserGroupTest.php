@@ -12,8 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * 用户组（对齐 ResourceSpace usergroup）：
- * 权限位覆盖角色矩阵 + 高级限制（每日限额 / IP 限制）+ 后台管理。
+ * 用户组：权限位覆盖角色矩阵 + 高级限制（每日限额 / IP 限制）+ 后台管理。
  */
 class UserGroupTest extends TestCase
 {

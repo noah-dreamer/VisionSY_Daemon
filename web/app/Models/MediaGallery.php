@@ -85,10 +85,21 @@ class MediaGallery extends Model
         return $this->scan_status === ScanStatus::Scanning->value;
     }
 
+    /**
+     * 扫描锁 stale 阈值（分钟）。必须大于扫描 Job 的最长 timeout，
+     * 避免合法长扫描被误判为 stale 而并发重入。
+     */
+    public static function staleLockMinutes(): int
+    {
+        $minutes = (int) config('visionsy.media.scanner.stale_lock_minutes', 75);
+
+        return $minutes > 0 ? $minutes : 75;
+    }
+
     public function canStartScan(): bool
     {
         if ($this->isScanning() && $this->locked_at !== null) {
-            if ($this->locked_at->diffInMinutes(now()) >= 30) {
+            if ($this->locked_at->diffInMinutes(now()) >= self::staleLockMinutes()) {
                 return true;
             }
 
@@ -104,7 +115,7 @@ class MediaGallery extends Model
             ->where('id', $this->id)
             ->where(function ($q) {
                 $q->whereNull('locked_at')
-                    ->orWhere('locked_at', '<', Carbon::now()->subMinutes(30));
+                    ->orWhere('locked_at', '<', Carbon::now()->subMinutes(self::staleLockMinutes()));
             })
             ->update([
                 'locked_at' => now(),

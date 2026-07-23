@@ -13,8 +13,8 @@
         <form method="POST" action="{{ route('admin.oauth-clients.store') }}" class="mt-5 grid gap-4">
             @csrf
             <div class="grid gap-4 sm:grid-cols-2">
-                <x-field name="name" label="名称" :value="old('name')" placeholder="例如：ResourceSpace 媒体库" required />
-                <x-field name="client_id" label="Client ID" :value="old('client_id')" placeholder="resourcespace" required mono />
+                <x-field name="name" label="名称" :value="old('name')" placeholder="例如：内置媒体库" required />
+                <x-field name="client_id" label="Client ID" :value="old('client_id')" placeholder="my-client" required mono />
             </div>
 
             <div>

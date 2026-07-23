@@ -10,7 +10,7 @@
 
 <div class="mt-6">
     <span class="form-label">权限位</span>
-    <p class="form-hint mt-0">语义对齐 ResourceSpace 用户组权限；勾选即授予。组内用户以此为准，覆盖其角色默认矩阵。</p>
+    <p class="form-hint mt-0">权限位；勾选即授予。组内用户以此为准，覆盖其角色默认矩阵。</p>
     <div class="mt-3 grid gap-2.5 sm:grid-cols-2">
         @foreach ($flags as $flag => [$label, $hint])
             <label class="flex items-start gap-3 rounded-xl border border-ink-200 bg-white p-3.5 transition hover:border-brand-300">
@@ -28,7 +28,7 @@
 
 <div class="mt-6">
     <span class="form-label">高级选项</span>
-    <p class="form-hint mt-0">对齐 ResourceSpace 的 Advanced user group options。系统管理员不受这些限制。</p>
+    <p class="form-hint mt-0">高级用户组选项。系统管理员不受这些限制。</p>
     <div class="mt-3 grid gap-5 sm:grid-cols-2">
         <x-field name="download_limit_per_day" label="每日下载限额" type="number"
                  :value="old('download_limit_per_day', $group?->download_limit_per_day ?? 0)"

@@ -1,0 +1,120 @@
+# ==================================================================
+# VisionSY 基础 Compose（dev 与 prod 共享）
+#
+# 用法：
+#   开发：docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
+#   生产：docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d
+#
+# 约定：
+#   - app / worker / scheduler 共享同一镜像（x-app 锚点），以不同命令运行。
+#   - 容器内 DAM 路径固定为 /data/visionsy/{managed,sources,derivatives}；
+#     宿主机路径由 .env 的 DAM_HOST_* 提供（Windows 与 Linux 仅此处不同）。
+#   - sources 默认只读（:ro），derivatives 由 worker 可写。
+#   - 容器启动不自动 migrate/seed；迁移是单独步骤（见 README）。
+#   - database 队列 retry_after(3700) > worker --timeout(3600)。
+# ==================================================================
+
+name: visionsy
+
+x-app: &app
+  build:
+    context: ../../web
+    dockerfile: Dockerfile
+  image: visionsy-app:${APP_IMAGE_TAG:-latest}
+  env_file:
+    - .env
+  volumes:
+    # Laravel storage 与启动缓存在 app/worker/scheduler 间一致（命名卷）
+    - storage:/app/storage
+    - bootstrap_cache:/app/bootstrap/cache
+    # DAM 三目录：宿主机路径 -> 固定容器路径
+    - ${DAM_HOST_MANAGED}:/data/visionsy/managed
+    - ${DAM_HOST_SOURCES}:/data/visionsy/sources:ro
+    - ${DAM_HOST_DERIVATIVES}:/data/visionsy/derivatives
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+  networks:
+    - visionsy
+
+services:
+  # ---------- Web（FrankenPHP） ----------
+  app:
+    <<: *app
+    # 使用镜像默认 CMD：frankenphp run --config /etc/caddy/Caddyfile
+    ports:
+      - "${APP_PORT:-8000}:80"
+    environment:
+      SERVER_NAME: ":80"
+    healthcheck:
+      # Laravel /up 健康检查（无副作用）
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:80/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---------- 队列 Worker ----------
+  worker:
+    <<: *app
+    # 镜像自带面向 Web 的健康检查（Caddy :2019/metrics），对非 Web 进程无意义，予以禁用；
+    # 进程存活由 restart 策略保障，队列健康可经 `php artisan queue:failed` 观察。
+    healthcheck:
+      disable: true
+    # --timeout 必须 < database 队列 retry_after（DB_QUEUE_RETRY_AFTER，默认 3700）。
+    # --max-time 到期后进程退出，由 restart 策略重新拉起，避免内存泄漏。
+    # 监听所有队列（default, scan, derivatives, upload），长扫描与短任务分队列处理。
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --queue=default,scan,derivatives,upload
+      - --sleep=3
+      - --tries=3
+      - --timeout=3600
+      - --max-time=3600
+      - --max-jobs=1000
+
+  # ---------- 调度器 ----------
+  scheduler:
+    <<: *app
+    # 同 worker：禁用镜像自带的 Web 健康检查（调度器不监听 HTTP）。
+    healthcheck:
+      disable: true
+    # 稳定持续运行方式
+    command:
+      - php
+      - artisan
+      - schedule:work
+
+  # ---------- 数据库（MariaDB，固定版本） ----------
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-visionsy}
+      MARIADB_USER: ${DB_USERNAME:-visionsy}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - visionsy
+    # 基础文件不向宿主机发布 DB 端口（生产要求）。
+    # 开发如需本地客户端连接，使用 compose.dev.yaml 暴露。
+
+volumes:
+  storage:
+  bootstrap_cache:
+  db_data:
+
+networks:
+  visionsy:
+    driver: bridge

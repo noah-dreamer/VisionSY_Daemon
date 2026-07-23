@@ -30,12 +30,14 @@ export default defineConfig({
     // server 上对 /playcaptcha.svg、/toys 的请求代理过去，效果等同于
     // hst 2 的 express.static('public') 同源托管。
     server: {
-        host: '127.0.0.1',
+        host: '0.0.0.0',
         port: 5173,
         strictPort: true,
+        // PlayCaptcha assets proxy: use Docker service name for cross-container access.
+        // The Vite container is on the visionsy network; app:80 is the FrankenPHP service.
         proxy: {
-            '/playcaptcha.svg': 'http://127.0.0.1:8000',
-            '/toys': 'http://127.0.0.1:8000',
+            '/playcaptcha.svg': 'http://app:80',
+            '/toys': 'http://app:80',
         },
     },
 });

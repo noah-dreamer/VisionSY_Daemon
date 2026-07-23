@@ -1,0 +1,32 @@
+# ==================================================================
+# VisionSY 生产覆盖（compose.prod.yaml）
+#
+# 用法：docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d
+#
+# 生产约定：
+#   - 不发布 DB 端口（基础文件已不发布，这里显式保持为空）。
+#   - 前端资源在镜像构建期生成，不运行 Vite。
+#   - APP_ENV=production / APP_DEBUG=false 来自 .env（建议用 .env.prod.example）。
+#   - 迁移是单独、可观察的发布步骤，不在容器启动时执行。
+#   - 覆盖 Caddyfile 为生产版（禁止自动 HTTPS + JSON 日志）。
+# ==================================================================
+
+services:
+  app:
+    restart: always
+    environment:
+      SERVER_NAME: "${SERVER_NAME:-:80}"
+    # 生产 Caddyfile（禁止自动 HTTPS、JSON 日志格式）
+    volumes:
+      - ../../web/docker/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+
+  worker:
+    restart: always
+
+  scheduler:
+    restart: always
+
+  db:
+    restart: always
+    # 生产不向宿主机/公网发布数据库端口
+    ports: []

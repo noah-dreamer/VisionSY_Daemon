@@ -19,10 +19,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'internal_api' => InternalApiAuth::class,
         ]);
 
-        // /oauth/token 由外部客户端（ResourceSpace）以表单 POST 调用，无会话、无 CSRF。
-        $middleware->validateCsrfTokens(except: [
-            'oauth/token',
-        ]);
+        // Trusted proxies：信任前置反向代理（FrankenPHP/Caddy 等）。
+        // TRUSTED_PROXY_IPS：逗号分隔的代理 IP 列表，默认信任 127.0.0.1（容器内回环）。
+        $proxyIps = array_filter(
+            explode(',', (string) env('TRUSTED_PROXY_IPS', '127.0.0.1'))
+        );
+        if (! empty($proxyIps)) {
+            $middleware->trustProxies(at: $proxyIps);
+        }
+        // trusted headers 使用 Symfony 默认集合：
+        //   X-Forwarded-For / X-Forwarded-Host / X-Forwarded-Proto / X-Forwarded-Port
+        //   X-Forwarded-Prefix / Forwarded（RFC 7239）
+        // 生产反向代理必须设置这些头；FrankenPHP/Caddy 通过 header_down 传递。
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

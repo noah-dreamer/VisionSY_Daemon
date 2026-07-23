@@ -11,9 +11,9 @@
 *.sql
 *.sql.gz
 
-# Ignore local deploy copies; keep only *.example templates.
-nginx/*.conf
-nginx/snippets/*.conf
-systemd/*.service
 scripts/*.sh
-reverse-proxy/*.local.md
+
+docker/data/
+docker/*.env
+!docker/*.env.example
+!docker/.env.example

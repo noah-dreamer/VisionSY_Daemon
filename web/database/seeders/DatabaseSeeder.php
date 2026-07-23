@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\CampusIpRange;
-use App\Models\OAuthClient;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -13,8 +12,8 @@ use Illuminate\Database\Seeder;
  * 本地开发种子数据。
  *
  * 所有密码仅为本地开发占位，可通过环境变量覆盖：
- *   SEED_DEFAULT_PASSWORD / SEED_RS_CLIENT_SECRET
- * 生产环境禁止运行本 Seeder；生产凭据一律来自 `<SECRET_MANAGER>`（见 README《凭据与密钥索引》）。
+ *   SEED_DEFAULT_PASSWORD
+ * 生产环境禁止运行本 Seeder；生产凭据一律来自 `<SECRET_MANAGER>`。
  */
 class DatabaseSeeder extends Seeder
 {
@@ -68,22 +67,7 @@ class DatabaseSeeder extends Seeder
             CampusIpRange::create($range);
         }
 
-        // 7. ResourceSpace OAuth2 客户端
-        $rsSecret = env('SEED_RS_CLIENT_SECRET', '<OAUTH_CLIENT_SECRET>');
-        OAuthClient::create([
-            'client_id' => 'resourcespace',
-            'client_secret_hash' => password_hash($rsSecret, PASSWORD_BCRYPT),
-            'name' => 'ResourceSpace 媒体库',
-            'redirect_uris' => [
-                'https://media.example.com/plugins/visionsy_sso/pages/callback.php',
-                'http://localhost:8080/plugins/visionsy_sso/pages/callback.php',
-            ],
-            'scopes' => ['profile'],
-        ]);
-
-        $this->command?->warn("ResourceSpace OAuth client_id=resourcespace, client_secret={$rsSecret}（仅本地开发；生产 secret 在后台重新创建并存入`<SECRET_MANAGER>`）");
-
-        // 8. 默认用户组（媒体库权限组，对齐 ResourceSpace usergroup）
+        // 7. 默认用户组（媒体库权限组）
         $this->call(UserGroupSeeder::class);
 
         // 9. 媒体库演示素材（GD 生成示例照片，走完整入库 + 水印流程）

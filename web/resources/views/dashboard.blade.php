@@ -73,7 +73,7 @@
                                 <h2 class="h-card">账号已激活</h2>
                                 <p class="mt-1 prose-muted">你可以直接进入站内媒体库，按角色权限检索、浏览与下载素材。</p>
                             </div>
-                            <a href="{{ $resourceSpaceUrl }}" class="btn-primary shrink-0">
+                            <a href="{{ $mediaLibraryUrl }}" class="btn-primary shrink-0">
                                 进入媒体库
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3"/></svg>
                             </a>
@@ -102,7 +102,7 @@
                 @php
                     $isActive = $user->status->value === 'active';
                 @endphp
-                <a href="{{ $isActive ? $resourceSpaceUrl : '#' }}"
+                <a href="{{ $isActive ? $mediaLibraryUrl : '#' }}"
                    class="card {{ $isActive ? 'card-hover' : 'pointer-events-none opacity-60' }} group flex items-start gap-4 p-6"
                    @if(!$isActive) aria-disabled="true" tabindex="-1" @endif>
                     <x-feature-icon path="M2.25 12.76V19.5a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25v-6.74M21 8.25 12 13 3 8.25 12 3.5l9 4.75Z" class="group-hover:bg-brand-600 group-hover:text-white group-hover:ring-brand-600" />

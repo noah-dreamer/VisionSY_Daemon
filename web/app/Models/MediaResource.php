@@ -37,6 +37,7 @@ class MediaResource extends Model
         'storage_source_id',
         'gallery_id',
         'relative_path',
+        'relative_path_hash',
         'source_size_bytes',
         'source_modified_at',
         'source_identity',
@@ -55,6 +56,25 @@ class MediaResource extends Model
         'missing_at',
         'last_seen_at',
     ];
+
+    /**
+     * 计算 relative_path 的稳定哈希，用作图库内资源身份的等价唯一约束。
+     * relative_path 为 varchar(1024)，在 MySQL/MariaDB utf8mb4 下无法直接建唯一索引
+     * （超过 3072 字节索引上限），改用 SHA-256 哈希列 + 唯一索引 (gallery_id, relative_path_hash)。
+     */
+    public static function hashRelativePath(string $relativePath): string
+    {
+        return hash('sha256', str_replace('\\', '/', $relativePath));
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (MediaResource $resource): void {
+            if ($resource->relative_path !== null && $resource->relative_path !== '') {
+                $resource->relative_path_hash = self::hashRelativePath($resource->relative_path);
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -203,6 +223,7 @@ class MediaResource extends Model
 
     public function isMissing(): bool
     {
-        return $this->index_status?->value === MediaStatus::Missing->value;
+        // index_status 已 cast 为 MediaStatus 枚举，直接用枚举对象比较，避免枚举对象与字符串混用。
+        return $this->index_status === MediaStatus::Missing;
     }
 }

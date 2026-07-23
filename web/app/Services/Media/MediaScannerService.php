@@ -2,12 +2,13 @@
 
 namespace App\Services\Media;
 
-use App\Jobs\Media\GenerateMediaDerivatives;
 use App\Enums\DerivativeStatus;
 use App\Enums\MediaStatus;
+use App\Jobs\Media\GenerateMediaDerivatives;
 use App\Models\MediaGallery;
 use App\Models\MediaResource;
 use App\Models\MediaStorageSource;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
@@ -18,11 +19,10 @@ class MediaScannerService
         private PathResolverService $pathResolver,
         private FileTypeDetector $fileTypeDetector,
         private MediaMetadataService $metadata,
-    ) {
-    }
+    ) {}
 
     /**
-     * 递归扫描图库内的文件。
+     * 扫描图库内的文件（有界内存：使用 generator + last_seen_at 标记）。
      *
      * @return array{indexed: int, updated: int, missing: int, errors: int}
      */
@@ -39,12 +39,13 @@ class MediaScannerService
             throw new RuntimeException("图库目录不可访问: {$galleryPath}");
         }
 
-        $discovered = $this->enumerateFiles($galleryPath, $source, $gallery);
         $indexed = 0;
         $updated = 0;
         $errors = 0;
+        $discoveredPaths = [];
 
-        foreach ($discovered as $fileInfo) {
+        foreach ($this->enumerateFiles($source, $gallery) as $fileInfo) {
+            $discoveredPaths[] = $fileInfo['relative_path'];
             try {
                 $result = $this->indexOrUpdateFile($source, $gallery, $fileInfo);
                 if ($result === 'indexed') {
@@ -78,7 +79,7 @@ class MediaScannerService
             }
         }
 
-        $missing = $this->markMissingFiles($gallery, $discovered);
+        $missing = $this->markMissingFiles($gallery, $discoveredPaths);
 
         $gallery->update([
             'scan_status' => 'completed',
@@ -98,29 +99,35 @@ class MediaScannerService
     }
 
     /**
-     * 枚举图库内所有文件（递归，忽略 _visionsy）。
+     * 枚举图库内文件（generator，有界内存）。
+     * 忽略 _visionsy 目录、隐藏文件、符号链接和排除模式。
+     * scan_recursive=false 时仅扫描一级目录。
      *
-     * @return array<int, array{absolute_path: string, relative_path: string, size: int, mtime: int}>
+     * @return \Generator<array{absolute_path: string, relative_path: string, size: int, mtime: int, identity: string}>
      */
-    private function enumerateFiles(string $galleryPath, MediaStorageSource $source, MediaGallery $gallery): array
+    private function enumerateFiles(MediaStorageSource $source, MediaGallery $gallery): \Generator
     {
-        $files = [];
+        $galleryPath = $gallery->fullPath();
         $excludeList = config('visionsy.media.scan_exclude_patterns', []);
+        $recursive = (bool) $source->scan_recursive;
 
-        $recursiveDir = new \RecursiveDirectoryIterator(
-            $galleryPath,
-            \RecursiveDirectoryIterator::SKIP_DOTS
-        );
-
-        $iterator = new \RecursiveIteratorIterator(
-            $recursiveDir,
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
-
-        $normalizedGalleryPath = rtrim(str_replace('\\', '/', $galleryPath), '/') . '/';
+        $normalizedGalleryPath = rtrim(str_replace('\\', '/', $galleryPath), '/').'/';
         $galleryPathLen = strlen($normalizedGalleryPath);
 
+        if ($recursive) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($galleryPath, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::KEY_AS_PATHNAME),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+        } else {
+            $iterator = new \DirectoryIterator($galleryPath);
+        }
+
         foreach ($iterator as $item) {
+            if (! $recursive && $item->isDot()) {
+                continue;
+            }
+
             $itemPath = str_replace('\\', '/', $item->getPathname());
 
             if (str_contains($itemPath, '/'.PathResolverService::DERIVATIVE_DIR.'/')
@@ -169,7 +176,7 @@ class MediaScannerService
             $size = $item->getSize();
             $mtime = $item->getMTime();
 
-            $files[] = [
+            yield [
                 'absolute_path' => $absPath,
                 'relative_path' => $relPath,
                 'size' => $size,
@@ -177,8 +184,6 @@ class MediaScannerService
                 'identity' => hash('sha256', $relPath.'|'.$size.'|'.$mtime),
             ];
         }
-
-        return $files;
     }
 
     /**
@@ -187,10 +192,10 @@ class MediaScannerService
     private function indexOrUpdateFile(MediaStorageSource $source, MediaGallery $gallery, array $fileInfo): string
     {
         $relativePath = $fileInfo['relative_path'];
-        $fileMtime = \Illuminate\Support\Carbon::createFromTimestamp($fileInfo['mtime'], 'UTC');
+        $fileMtime = Carbon::createFromTimestamp($fileInfo['mtime'], 'UTC');
 
         $existing = MediaResource::query()
-            ->where('storage_source_id', $source->id)
+            ->where('gallery_id', $gallery->id)
             ->where('relative_path', $relativePath)
             ->first();
 
@@ -217,7 +222,6 @@ class MediaScannerService
             if ($needsUpdate) {
                 $checksum = $this->computeChecksumIfNeeded($existing, $fileInfo);
                 $typeResult = $this->fileTypeDetector->detect($fileInfo['absolute_path']);
-                $metaType = $this->fileTypeDetector->toMediaType($typeResult['category']);
 
                 $existing->update([
                     'source_size_bytes' => $fileInfo['size'],
@@ -277,22 +281,20 @@ class MediaScannerService
     /**
      * 标记在扫描中消失的文件。
      */
-    private function markMissingFiles(MediaGallery $gallery, array $discovered): int
+    private function markMissingFiles(MediaGallery $gallery, array $discoveredPaths): int
     {
-        $discoveredPaths = array_column($discovered, 'relative_path');
+        $query = MediaResource::query()
+            ->where('gallery_id', $gallery->id)
+            ->where('index_status', '!=', MediaStatus::Missing->value);
 
-        if ($discoveredPaths === []) {
-            return 0;
+        if ($discoveredPaths !== []) {
+            $query->whereNotIn('relative_path', $discoveredPaths);
         }
 
-        return MediaResource::query()
-            ->where('gallery_id', $gallery->id)
-            ->where('index_status', '!=', MediaStatus::Missing->value)
-            ->whereNotIn('relative_path', $discoveredPaths)
-            ->update([
-                'index_status' => MediaStatus::Missing->value,
-                'missing_at' => now(),
-            ]);
+        return $query->update([
+            'index_status' => MediaStatus::Missing->value,
+            'missing_at' => now(),
+        ]);
     }
 
     private function computeChecksumIfNeeded(?MediaResource $existing, array $fileInfo): ?string

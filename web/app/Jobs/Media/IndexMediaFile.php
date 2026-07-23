@@ -22,6 +22,7 @@ class IndexMediaFile implements ShouldQueue
     public function __construct(
         private int $resourceId,
     ) {
+        $this->queue = 'scan';
     }
 
     public function handle(

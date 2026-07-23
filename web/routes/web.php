@@ -19,7 +19,6 @@ use App\Http\Controllers\Media\GalleryController as MediaGalleryController;
 use App\Http\Controllers\Media\MediaFileController;
 use App\Http\Controllers\Media\MediaLibraryController;
 use App\Http\Controllers\Media\MediaUploadController;
-use App\Http\Controllers\OAuth\OAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -57,13 +56,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'show'])->name('dashboard');
     Route::post('/dashboard/recheck-activation', [DashboardController::class, 'recheckActivation'])
         ->name('dashboard.recheck');
-
-    Route::get('/oauth/authorize', [OAuthController::class, 'authorize'])->name('oauth.authorize');
 });
 
-/* ---------- OAuth2 无会话端点 ---------- */
-Route::post('/oauth/token', [OAuthController::class, 'token'])->name('oauth.token');
-Route::get('/oauth/userinfo', [OAuthController::class, 'userinfo'])->name('oauth.userinfo');
 
 
 /* ---------- 内置媒体库（DAM） ---------- */

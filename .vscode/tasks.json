@@ -1,74 +1,165 @@
 {
     "version": "2.0.0",
+    // VisionSY 日常开发任务（Docker Compose + FrankenPHP，跨平台）。
+    // 本文件适用于将 VisionSY_Private 直接作为工作区打开的情形；
+    // 若打开的是包含 VisionSY_Private/VisionSY_Public 的上层工作区，请使用上层 .vscode/tasks.json。
+    // 使用：Ctrl/Cmd+Shift+P → "Tasks: Run Task"。
+    //   首次：VisionSY: 初始化开发环境 (Docker)
+    //   之后：VisionSY: 启动 (Docker) → http://localhost:8000
+    // 所有任务只调用 docker compose 或跨平台 Node 脚本，不依赖 bash/cmd 特有语法。
+    // 原生 PHP + Vite 方式见 README.md（可选）。
     "tasks": [
         {
-            "label": "VisionSY: 初始化开发环境",
-            "detail": "composer + npm 安装依赖，生成 .env 与 SQLite 数据库，迁移并写入演示数据（含媒体库示例素材）",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "composer install && npm install && node -e \"const fs=require('fs'); if(!fs.existsSync('.env')) fs.copyFileSync('.env.dev.example','.env');\" && php artisan key:generate --ansi && node -e \"const fs=require('fs'); fs.closeSync(fs.openSync('database/database.sqlite','a'));\" && php artisan migrate:fresh --seed --ansi && npm run build",
+            "label": "VisionSY: 初始化开发环境 (Docker)",
+            "detail": "跨平台脚本：生成 .env(不覆盖)→构建镜像→启动→生成 APP_KEY→migrate（不 seed、不 migrate:fresh）",
+            "type": "process",
+            "command": "node",
+            "args": ["init.mjs"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 重置简易数据库",
-            "detail": "清空 SQLite 并重新写入演示数据（媒体库示例素材会重新生成）",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "php artisan migrate:fresh --seed --ansi",
+            "label": "VisionSY: 构建镜像 (Docker)",
+            "detail": "docker compose build（应用镜像含前端资源）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "build"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 网站 (Laravel)",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "php artisan serve --host=127.0.0.1 --port=8000",
+            "label": "VisionSY: 启动 (Docker)",
+            "detail": "docker compose up -d（app/worker/scheduler/db/vite）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "up", "-d"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 停止 (保留数据卷)",
+            "detail": "docker compose down（停止并移除容器，保留 storage/db 等数据卷；不会执行 down -v）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "down"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 日志 - app",
+            "detail": "docker compose logs -f app（FrankenPHP/Web）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "app"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "isBackground": true,
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy-logs" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 前端构建",
-            "detail": "生成 public/build/ 生产静态资源（PlayCaptcha 等），约需 1 秒",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "npm run build",
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 前端 (Vite)",
-            "detail": "启动 Vite 开发服务器（:5173），热更新 CSS/JS，覆盖 public/build/；首次使用需先运行初始化或前端构建",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "rm -f public/hot && npm run dev",
+            "label": "VisionSY: 日志 - worker",
+            "detail": "docker compose logs -f worker（队列消费者）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "worker"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy-logs" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 日志 - scheduler",
+            "detail": "docker compose logs -f scheduler（调度器）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "scheduler"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy-logs" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 测试 (DAM 相关)",
+            "detail": "容器内运行 DAM 身份/Missing/扫描相关测试",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "test", "--filter=MediaIdentityAndMissingTest|GalleryScanTest"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 一键启动",
-            "detail": "同时启动 Laravel(:8000) 与 Vite 前端，访问 http://127.0.0.1:8000",
-            "dependsOrder": "parallel",
-            "dependsOn": ["VisionSY: 网站 (Laravel)", "VisionSY: 前端 (Vite)"],
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 运行测试",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "php artisan test",
+            "label": "VisionSY: 测试 (全量)",
+            "detail": "容器内运行全部测试（php artisan test）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "test"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 查看最新验证码邮件",
-            "detail": "从日志中提取最近发送的邮箱验证码",
-            "type": "shell",
-            "options": { "cwd": "${workspaceFolder}/web" },
-            "command": "node -e \"const fs=require('fs');const p='storage/logs/laravel.log';if(!fs.existsSync(p)){console.log('暂无日志');process.exit(0);}const m=fs.readFileSync(p,'utf8').match(/邮箱验证码：(\\d{6})/g);console.log(m?('最近的验证码：'+m[m.length-1]):'日志中还没有验证码邮件');\"",
-            "presentation": { "reveal": "always", "panel": "shared", "group": "visionsy" },
+            "label": "VisionSY: 前端构建 (重建应用镜像)",
+            "detail": "前端资源在镜像构建期生成；此任务重建 app 镜像（等价 npm run build 的容器化入口）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "build", "app"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 迁移 (migrate)",
+            "detail": "docker compose exec app php artisan migrate（非破坏性，不 seed）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "migrate", "--force"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 查看失败任务",
+            "detail": "docker compose exec app php artisan queue:failed",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "queue:failed"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 手动 DAM 扫描",
+            "detail": "docker compose exec app php artisan media:scan（扫描所有启用存储源）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "media:scan"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: app Shell",
+            "detail": "进入 app 容器 shell（docker compose exec app sh）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "app", "sh"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: ⚠ 重建可丢弃开发数据库 (危险)",
+            "detail": "⚠ 仅用于可丢弃的本地开发库：migrate:fresh --seed 会清空并重建数据库。切勿对真实/生产数据执行。",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "migrate:fresh", "--seed", "--force"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         }
     ]

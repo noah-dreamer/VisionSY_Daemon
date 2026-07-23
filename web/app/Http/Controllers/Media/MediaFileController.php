@@ -172,7 +172,6 @@ class MediaFileController extends Controller
 
     private function sendFile(MediaResource $resource, string $variant): Response
     {
-        if ($variant === 'original') {
         if ($variant === 'watermarked_png') {
             $absPath = $this->pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedPng);
             if (! is_file($absPath)) {
@@ -185,7 +184,8 @@ class MediaFileController extends Controller
             ]);
         }
 
-        if ($resource->isLegacy()) {
+        if ($variant === 'original') {
+            if ($resource->isLegacy()) {
                 $disk = $this->storage->disk();
                 $path = $resource->originalRelativePath();
                 abort_unless($disk->exists($path), 404);

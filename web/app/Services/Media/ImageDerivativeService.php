@@ -45,10 +45,12 @@ class ImageDerivativeService
             $height = imagesy($src);
         }
 
-        $thumbPath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Thumb);
-        $largePath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Large);
-        $wmJpegPath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedJpeg);
-        $wmPngPath = $pathResolver->resolveDerivativeAbsolute($resource, DerivativeVariant::WatermarkedPng);
+        $pathResolver->ensureDerivativeDir($resource);
+
+        $thumbPath = $pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::Thumb);
+        $largePath = $pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::Large);
+        $wmJpegPath = $pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::WatermarkedJpeg);
+        $wmPngPath = $pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::WatermarkedPng);
 
         $thumbQ = (int) config('visionsy.media.thumb_jpeg_quality', 75);
         $prevQ = (int) config('visionsy.media.preview_jpeg_quality', 82);

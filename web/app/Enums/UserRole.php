@@ -21,12 +21,6 @@ enum UserRole: string
         };
     }
 
-    /** ResourceSpace 用户组名（固定映射）。 */
-    public function resourceSpaceGroup(): string
-    {
-        return config('visionsy.role_group_map')[$this->value];
-    }
-
     /** 管理后台可创建的实名角色。 */
     public static function adminAssignable(): array
     {

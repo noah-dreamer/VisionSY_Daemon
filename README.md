@@ -2,22 +2,25 @@
 
 > **⚡ 集成版（Integrated Edition）说明**
 >
-> 本版本已将媒体资产管理（DAM）**直接内置进官网应用**（`web/`），不再需要独立部署 ResourceSpace：
+> 本版本将媒体资产管理（DAM）**直接内置进官网应用**（`web/`），统一架构、统一账号、统一部署：
 >
 > - **统一账户**：媒体库直接使用官网的用户表与角色体系（宣传部 / 官微老师 / 普通用户 / 游客），无 SSO 跳转、无第二套账号数据库；
 > - **统一 UI**：媒体库页面复用官网的设计系统（同一套 Tailwind 设计令牌、卡片、按钮、徽章组件），视觉零违和；
-> - **对齐 ResourceSpace 的核心能力**：上传时读取照片/视频**全部内嵌标签**（exiftool 优先，回退 exif/getID3）、分级下载 + GD 自动平铺水印、SHA-256 去重、归档、审计；
-> - **用户/用户组/权限统一在官网后台管理**：RS 式用户组（权限位 + 每日下载限额 + IP 限制 + 注册默认组），与账号体系同库同后台，零割裂；
+> - **核心能力**：上传时读取照片/视频**全部内嵌标签**（exiftool 优先，回退 exif/getID3）、分级下载 + GD 自动平铺水印、SHA-256 去重、归档、审计；
+> - **用户/用户组/权限统一在官网后台管理**：权限位 + 每日下载限额 + IP 限制 + 注册默认组，与账号体系同库同后台，零割裂；
 > - **注册邮箱验证码**：注册后发送 6 位数字验证码（10 分钟有效、60 秒重发冷却、5 次尝试上限）；
 > - **登录人机验证**：直接接入开源 [PlayCaptcha](https://github.com/mortspace/playcaptcha)（React 抓娃娃机组件，npm 包 + 官方素材，服务端叠加一次性挑战/耗时下限/一次性 token 防线）；
-> - **一键测试**：`.vscode/tasks.json` 提供「初始化开发环境」「一键启动」任务，SQLite 简易数据库 + `php artisan serve`，开箱即用（见下方 Quick Start）；
-> - 原 `resourcespace/` 目录（外部 ResourceSpace + SSO 插件方案）**保留作为历史/备选方案**，默认不再使用。
+> - **一键测试（Docker）**：`.vscode/tasks.json` 提供「初始化开发环境 (Docker)」「启动 (Docker)」任务，Docker Compose + FrankenPHP + MariaDB，开箱即用（见下方 Quick Start）；
 >
-> **Quick Start（VS Code）**：打开仓库 → `Ctrl/Cmd+Shift+P` → *Tasks: Run Task* → **VisionSY: 初始化开发环境**（首次）→ **VisionSY: 一键启动** → 访问 <http://127.0.0.1:8000>。
+>
+> **Quick Start（Docker Compose，推荐）**：安装 Docker Desktop 后，打开仓库 → `Ctrl/Cmd+Shift+P` → *Tasks: Run Task* → **VisionSY: 初始化开发环境 (Docker)**（首次）→ **VisionSY: 启动 (Docker)** → 访问 <http://localhost:8000>（Vite HMR :5173）。
+> 命令行方式见 [`deploy/docker/README.md`](deploy/docker/README.md)。
 > 种子账号密码统一 `visionsy-dev`：`admin@example.com`（管理员）、`media@example.com`（宣传部，可上传/下原图）、`teacher@example.com`（官微编辑）、`student@student.example.com`（普通用户，仅水印图）。
-> 注册验证码在 `web/storage/logs/laravel.log` 查看（或运行任务「查看最新验证码邮件」）。
 >
-> 依赖：PHP ≥ 8.2（含 **ext-gd**）、Composer、Node.js ≥ 18。
+> **可选：原生 PHP + Vite**（不依赖 Docker）：见 [`web/README.md`](web/README.md)「本地快速开始」，使用 SQLite + `php artisan serve`。
+>
+> 依赖（Docker 方式）：Docker Desktop（Windows）或 Docker Engine + Compose（Linux）。
+> 依赖（原生方式）：PHP ≥ 8.2（含 **ext-gd**）、Composer、Node.js ≥ 18。
 
 [English](#english) | [简体中文](#简体中文)
 
@@ -25,9 +28,9 @@
 
 ## English
 
-VisionSY is a campus-oriented visual media management platform. It combines a custom web portal for account management, authentication, role synchronization, OAuth2-based SSO, and integration APIs with a ResourceSpace-based media library for visual asset storage, review, access control, watermarking, and download workflows.
+VisionSY is a campus-oriented visual media management platform. It combines a custom web portal for account management, authentication, role synchronization, and integration APIs with a built-in media library (DAM) for visual asset storage, review, access control, watermarking, and download workflows.
 
-This repository is organized as a **monorepo**. The web application, ResourceSpace integration, deployment examples, and project documentation are maintained in separate directories while staying within one project repository.
+This repository is organized as a **monorepo**. The web application, deployment examples, and project documentation are maintained in separate directories while staying within one project repository.
 
 ## Project Status
 
@@ -60,19 +63,10 @@ VisionSY/
 │   ├── package.json
 │   └── vite.config.js
 │
-├── resourcespace/
-│   ├── README.md
-│   ├── .gitignore
-│   ├── plugin/
-│   │   └── visionsy_sso/
-│   └── docs/
-│
 ├── deploy/
 │   ├── README.md
 │   ├── .gitignore
-│   ├── nginx/
-│   ├── reverse-proxy/
-│   ├── systemd/
+│   ├── docker/
 │   └── scripts/
 │
 └── docs/
@@ -95,34 +89,19 @@ It provides:
 
 See [`web/README.md`](web/README.md) for development and setup instructions.
 
-### ResourceSpace Integration (legacy / optional)
+### Deployment
 
-> Superseded by the built-in media library in `web/` (unified accounts & UI). Kept for reference and as an alternative external-DAM deployment path.
+The `deploy/` directory contains Docker Compose deployment templates and operational scripts.
+Default entry point is [`deploy/docker/`](deploy/docker/).
 
-The `resourcespace/` directory contains the VisionSY integration for ResourceSpace.
+It provides:
 
-It includes:
+* Docker Compose files (base / dev / production)
+* Cross-platform init script (`init.mjs`)
+* Production deploy script (`deploy-docker.sh.example`)
+* Environment file examples (.env / .env.dev / .env.prod)
 
-* ResourceSpace SSO plugin code
-* OAuth2 client integration notes
-* User group and role mapping documentation
-* Permission and watermarking checklist
-
-See [`resourcespace/README.md`](resourcespace/README.md) for details.
-
-### Deployment Examples
-
-The `deploy/` directory contains sanitized deployment examples and operational templates.
-
-It may include example configuration for:
-
-* Reverse proxy routing
-* Nginx
-* systemd services
-* backup scripts
-* deployment helper scripts
-
-These examples are intended as references only. They must not contain real production secrets, internal IP addresses, private hostnames, certificates, private keys, or database backups.
+See [`deploy/README.md`](deploy/README.md) for details.
 
 See [`deploy/README.md`](deploy/README.md) for details.
 
@@ -157,11 +136,24 @@ Start with the component you want to work on:
 | Area                      | Entry Point                                          |
 | ------------------------- | ---------------------------------------------------- |
 | Web portal development    | [`web/README.md`](web/README.md)                     |
-| ResourceSpace integration | [`resourcespace/README.md`](resourcespace/README.md) |
-| Deployment examples       | [`deploy/README.md`](deploy/README.md)               |
+| Deployment                | [`deploy/README.md`](deploy/README.md)               |
 | General documentation     | [`docs/`](docs/)                                     |
 
-For local development of the web portal, go to the `web/` directory first:
+For local development, the default path is **Docker Compose** (FrankenPHP + MariaDB):
+
+```bash
+cd deploy/docker
+cp .env.dev.example .env          # then edit secrets / DAM_HOST_* paths
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d --build
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app php artisan key:generate --show
+#   paste the printed key into .env (APP_KEY), then: docker compose ... up -d
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app php artisan migrate
+#   Web: http://localhost:8000   Vite HMR: http://localhost:5173
+```
+
+See [`deploy/docker/README.md`](deploy/docker/README.md) for full details (Windows/Linux DAM mounts, production deploy).
+
+Optional **native** development (no Docker; SQLite + `php artisan serve`): go to the `web/` directory:
 
 ```bash
 cd web
@@ -184,9 +176,9 @@ License information will be added in [`LICENSE`](LICENSE).
 
 ## 简体中文
 
-VisionSY 是一个面向校园场景的视觉素材管理平台。它由自研官网与 ResourceSpace 媒体库两部分组成：官网负责账号体系、注册激活、鉴权、角色同步、OAuth2 SSO 与内部集成接口；ResourceSpace 负责视觉素材的存储、审核、权限控制、水印与下载流程。
+VisionSY 是一个面向校园场景的视觉素材管理平台。它由自研官网与内置媒体库（DAM）组成：官网负责账号体系、注册激活、鉴权、角色权限与内部集成接口；内置 DAM 负责视觉素材的存储、审核、权限控制、水印与下载流程。
 
-本仓库采用 **monorepo** 结构：官网应用、ResourceSpace 接入、部署示例和项目文档统一放在一个仓库中维护，并通过不同目录清晰划分。
+本仓库采用 **monorepo** 结构：官网应用、部署模板和项目文档统一放在一个仓库中维护，并通过不同目录清晰划分。
 
 ## 项目状态
 
@@ -220,19 +212,10 @@ VisionSY/
 │   ├── package.json
 │   └── vite.config.js
 │
-├── resourcespace/
-│   ├── README.md
-│   ├── .gitignore
-│   ├── plugin/
-│   │   └── visionsy_sso/
-│   └── docs/
-│
 ├── deploy/
 │   ├── README.md
 │   ├── .gitignore
-│   ├── nginx/
-│   ├── reverse-proxy/
-│   ├── systemd/
+│   ├── docker/
 │   └── scripts/
 │
 └── docs/
@@ -255,32 +238,16 @@ VisionSY/
 
 开发与运行说明见 [`web/README.md`](web/README.md)。
 
-### ResourceSpace 接入
+### 部署
 
-`resourcespace/` 目录包含 VisionSY 与 ResourceSpace 的集成内容。
+`deploy/` 目录包含 Docker Compose 部署模板与运维脚本。默认入口为 [`deploy/docker/`](deploy/docker/)。
 
-它包括：
+它提供：
 
-* ResourceSpace SSO 插件代码
-* OAuth2 Client 对接说明
-* 用户角色与 ResourceSpace 用户组映射文档
-* 权限与水印配置核对清单
-
-详细说明见 [`resourcespace/README.md`](resourcespace/README.md)。
-
-### 部署示例
-
-`deploy/` 目录包含脱敏后的部署示例和运维模板。
-
-它可以包括：
-
-* 反向代理路由示例
-* Nginx 示例配置
-* systemd 服务模板
-* 备份脚本示例
-* 部署辅助脚本
-
-这些内容仅作为参考示例，不应包含真实生产密钥、真实内网 IP、私有主机名、证书、私钥或数据库备份。
+* Docker Compose 文件（base / dev / production）
+* 跨平台初始化脚本（`init.mjs`）
+* 生产发布脚本（`deploy-docker.sh.example`）
+* 环境文件示例（.env / .env.dev / .env.prod）
 
 详细说明见 [`deploy/README.md`](deploy/README.md)。
 
@@ -315,11 +282,24 @@ VisionSY/
 | 内容               | 入口                                                   |
 | ---------------- | ---------------------------------------------------- |
 | 官网应用开发           | [`web/README.md`](web/README.md)                     |
-| ResourceSpace 接入 | [`resourcespace/README.md`](resourcespace/README.md) |
-| 部署示例             | [`deploy/README.md`](deploy/README.md)               |
+| 部署入口             | [`deploy/README.md`](deploy/README.md)               |
 | 通用项目文档           | [`docs/`](docs/)                                     |
 
-如果要本地运行官网应用，先进入 `web/` 目录：
+如果要本地运行，默认使用 **Docker Compose**（FrankenPHP + MariaDB）：
+
+```bash
+cd deploy/docker
+cp .env.dev.example .env          # 然后修改秘密与 DAM_HOST_* 路径
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d --build
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app php artisan key:generate --show
+#   将输出的密钥填入 .env 的 APP_KEY，然后：docker compose ... up -d
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app php artisan migrate
+#   Web: http://localhost:8000   Vite HMR: http://localhost:5173
+```
+
+完整说明（Windows/Linux DAM 挂载、生产部署）见 [`deploy/docker/README.md`](deploy/docker/README.md)。
+
+**可选：原生方式**（不依赖 Docker；SQLite + `php artisan serve`），进入 `web/` 目录：
 
 ```bash
 cd web

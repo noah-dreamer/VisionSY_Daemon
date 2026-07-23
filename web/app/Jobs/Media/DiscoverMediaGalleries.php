@@ -20,6 +20,7 @@ class DiscoverMediaGalleries implements ShouldQueue
     public function __construct(
         private int $sourceId,
     ) {
+        $this->queue = 'scan';
     }
 
     public function handle(GalleryService $galleryService): void

@@ -12,6 +12,25 @@ class PathResolverService
 {
     public const DERIVATIVE_DIR = '_visionsy';
 
+    private readonly string $managedRoot;
+    private readonly string $derivativesRoot;
+
+    public function __construct()
+    {
+        $this->managedRoot = rtrim(str_replace('\\', '/', (string) config('visionsy.media.managed_root', '/data/visionsy/managed')), '/');
+        $this->derivativesRoot = rtrim(str_replace('\\', '/', (string) config('visionsy.media.derivatives_root', '/data/visionsy/derivatives')), '/');
+    }
+
+    public function getManagedRoot(): string
+    {
+        return $this->managedRoot;
+    }
+
+    public function getDerivativesRoot(): string
+    {
+        return $this->derivativesRoot;
+    }
+
     /**
      * 获取原文件的绝对路径。
      */
@@ -33,6 +52,10 @@ class PathResolverService
 
     /**
      * 获取派生文件的绝对路径。
+     * 新派生统一写入独立的 derivatives 根目录，使用稳定 ID 层级：
+     *   {derivatives_root}/{source_id}/{gallery_id}/{resource_id}/{variant}/{filename}
+     *
+     * 读取时优先检查新路径，不存在则回退到旧 _visionsy/ 路径，保证兼容。
      */
     public function resolveDerivativeAbsolute(MediaResource $resource, DerivativeVariant $variant): string
     {
@@ -40,13 +63,75 @@ class PathResolverService
             return $this->resolveLegacyDerivativeAbsolute($resource, $variant);
         }
 
-        $gallery = $resource->gallery;
-        if ($gallery === null || $resource->storageSource === null) {
-            throw new RuntimeException('图库缺失，无法解析派生路径。');
+        if ($resource->storageSource === null || $resource->gallery === null) {
+            throw new RuntimeException('存储源或图库缺失，无法解析派生路径。');
         }
 
+        $newPath = $this->resolveNewDerivativePath($resource, $variant);
+
+        if (is_file($newPath)) {
+            return $newPath;
+        }
+
+        $legacyPath = $this->resolveLegacyDerivativePath($resource, $variant);
+
+        if (is_file($legacyPath)) {
+            return $legacyPath;
+        }
+
+        return $newPath;
+    }
+
+    /**
+     * 获取新派生文件的绝对路径（不检查是否存在，用于写入）。
+     */
+    public function resolveNewDerivativeAbsolute(MediaResource $resource, DerivativeVariant $variant): string
+    {
+        if ($resource->isLegacy()) {
+            return $this->resolveLegacyDerivativeAbsolute($resource, $variant);
+        }
+
+        return $this->resolveNewDerivativePath($resource, $variant);
+    }
+
+    /**
+     * 新派生路径：{derivatives_root}/{source_id}/{gallery_id}/{resource_id}/{subdir}/{filename}
+     */
+    private function resolveNewDerivativePath(MediaResource $resource, DerivativeVariant $variant): string
+    {
+        $sourceId = (string) $resource->storageSource->id;
+        $galleryId = (string) $resource->gallery->id;
+        $resourceId = (string) $resource->id;
+
+        $suffix = match ($variant) {
+            DerivativeVariant::Thumb => '.jpg',
+            DerivativeVariant::Large => '.jpg',
+            DerivativeVariant::WatermarkedJpeg => '.jpg',
+            DerivativeVariant::WatermarkedPng => '.png',
+        };
+
+        $subDir = match ($variant) {
+            DerivativeVariant::Thumb => 'preview/thumb',
+            DerivativeVariant::Large => 'preview/large',
+            DerivativeVariant::WatermarkedJpeg => 'watermarked/jpeg',
+            DerivativeVariant::WatermarkedPng => 'watermarked/png',
+        };
+
+        $filename = $resourceId.$suffix;
+
+        return $this->derivativesRoot.'/'.$sourceId.'/'.$galleryId.'/'.$resourceId.'/'.$subDir.'/'.$filename;
+    }
+
+    /**
+     * 旧派生路径（图库内 _visionsy/）：用于回退兼容。
+     */
+    private function resolveLegacyDerivativePath(MediaResource $resource, DerivativeVariant $variant): string
+    {
+        $gallery = $resource->gallery;
         $relPath = $resource->relative_path;
-        if ($relPath === null || $relPath === '') {
+        $source = $resource->storageSource;
+
+        if ($relPath === null || $relPath === '' || $gallery === null || $source === null) {
             throw new RuntimeException('相对路径缺失，无法解析派生路径。');
         }
 
@@ -69,10 +154,28 @@ class PathResolverService
         $derivativeRelative = self::DERIVATIVE_DIR.'/'.$subDir.'/'.ltrim($derivativeFile, '/');
 
         return $this->resolvePath(
-            $resource->storageSource->root_path,
+            $source->root_path,
             $gallery->relative_path,
             $derivativeRelative
         );
+    }
+
+    /**
+     * 为资源创建派生文件目录（含父目录），返回新派生根目录的基础路径。
+     */
+    public function ensureDerivativeDir(MediaResource $resource): string
+    {
+        $sourceId = (string) $resource->storageSource->id;
+        $galleryId = (string) $resource->gallery->id;
+        $resourceId = (string) $resource->id;
+
+        $base = $this->derivativesRoot.'/'.$sourceId.'/'.$galleryId.'/'.$resourceId;
+
+        if (! is_dir($base)) {
+            @mkdir($base, 0775, true);
+        }
+
+        return $base;
     }
 
     /**

@@ -8,9 +8,9 @@ use Symfony\Component\Process\Process;
 use Throwable;
 
 /**
- * 媒体元数据提取（对齐 ResourceSpace 的做法）：
+ * 媒体元数据提取：
  *
- * ResourceSpace 依赖 ExifTool 读取上传文件的全部内嵌标签并映射到元数据字段。
+ * 依赖 ExifTool 读取上传文件的全部内嵌标签并映射到元数据字段。
  * 本服务同样**优先调用 ExifTool**（`visionsy.media.exiftool_path` 配置或
  * PATH 中的 exiftool），一次拿到照片/视频的全部标签（EXIF/IPTC/XMP/
  * QuickTime/Matroska…）；未安装 ExifTool 时回退：
@@ -45,7 +45,7 @@ class MediaMetadataService
         ];
     }
 
-    /* ---------------- ExifTool（与 ResourceSpace 相同的首选路径） ---------------- */
+    /* ---------------- ExifTool ---------------- */
 
     private function viaExifTool(string $path): ?array
     {

@@ -12,8 +12,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * 大文件 307 直连 token API。
- * 所有端点经 internal_api 中间件（X-Internal-Secret）鉴权，
- * 供 ResourceSpace（生成）与 反向代理网关 / Nginx auth_request（校验/消费）调用。
+ * 所有端点经 internal_api 中间件（X-Internal-Secret）鉴权。
  */
 class TransferTokenController extends Controller
 {

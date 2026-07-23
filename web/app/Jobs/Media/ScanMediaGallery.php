@@ -23,6 +23,7 @@ class ScanMediaGallery implements ShouldQueue
         private int $galleryId,
         private ?int $actorId = null,
     ) {
+        $this->queue = 'scan';
     }
 
     public function handle(MediaScannerService $scanner, AuditLogger $audit): void

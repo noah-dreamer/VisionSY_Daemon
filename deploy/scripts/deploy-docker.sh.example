@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+# ==================================================================
+# VisionSY 生产发布脚本（Docker Compose + FrankenPHP，Linux 宿主机）
+#
+# 子命令：
+#   install   首次部署：准备 .env → 构建 → 启动 → 迁移 → 优化 → 健康检查
+#   update    日常更新：备份 DB → 构建 → 重建容器 → 迁移 → 优化 → 重载 Worker → 健康检查
+#   backup    仅备份数据库（mariadb-dump 到带时间戳的 .sql.gz）
+#   status    查看服务状态与健康
+#
+# 约定：
+#   - set -euo pipefail：任一步骤失败立即停止。
+#   - 不自动 seed；不在容器启动时并发迁移；不执行 down -v。
+#   - 单机无法真正零停机：重建容器存在秒级中断，请安排维护窗口。
+#   - 秘密经 .env（受控注入），脚本不打印/不提交秘密。
+#
+# 用法（在 deploy/docker/ 目录或指定 COMPOSE_DIR）：
+#   sudo ./deploy-docker.sh install
+#   sudo ./deploy-docker.sh update
+# ==================================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_DIR="${COMPOSE_DIR:-$(cd "${SCRIPT_DIR}/../docker" && pwd)}"
+COMPOSE_PROJECT="${COMPOSE_PROJECT:-visionsy}"
+BACKUP_DIR="${BACKUP_DIR:-${COMPOSE_DIR}/backups}"
+
+cd "${COMPOSE_DIR}"
+
+# 生产组合：基础 + 生产覆盖
+dc() {
+    docker compose -p "${COMPOSE_PROJECT}" -f compose.yaml -f compose.prod.yaml --env-file .env "$@"
+}
+
+require_env() {
+    if [[ ! -f .env ]]; then
+        echo "[deploy] 缺少 .env。请从 .env.prod.example 复制并填入真实秘密：" >&2
+        echo "         cp .env.prod.example .env  （然后编辑；切勿提交）" >&2
+        exit 1
+    fi
+}
+
+healthcheck() {
+    echo "[deploy] 健康检查（/up）..."
+    local port
+    port="$(grep -E '^APP_PORT=' .env | cut -d= -f2 || true)"
+    port="${port:-8000}"
+    for i in $(seq 1 30); do
+        if curl -fsS "http://127.0.0.1:${port}/up" >/dev/null 2>&1; then
+            echo "[deploy] 健康检查通过。"
+            return 0
+        fi
+        sleep 2
+    done
+    echo "[deploy] 健康检查失败：/up 在 60s 内未就绪。请查看日志：dc logs app" >&2
+    dc ps || true
+    exit 1
+}
+
+backup_db() {
+    require_env
+    mkdir -p "${BACKUP_DIR}"
+    local stamp db
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    db="$(grep -E '^DB_DATABASE=' .env | cut -d= -f2 || echo visionsy)"
+    local out="${BACKUP_DIR}/${db}-${stamp}.sql.gz"
+    echo "[deploy] 备份数据库 → ${out}"
+    # 密码从容器环境变量传入（MARIADB_ROOT_PASSWORD），不拼入命令行或脚本文本。
+    dc exec -T db sh -c 'mariadb-dump -u root -p"${MARIADB_ROOT_PASSWORD}" --single-transaction --routines --triggers "${MARIADB_DATABASE}"' | gzip > "${out}"
+    echo "[deploy] 备份完成：${out} ($(du -h "${out}" | cut -f1))"
+}
+
+backup_managed() {
+    require_env
+    local stamp managed_host out
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    managed_host="$(grep -E '^DAM_HOST_MANAGED=' .env | cut -d= -f2 || true)"
+    if [[ -z "${managed_host}" || ! -d "${managed_host}" ]]; then
+        echo "[deploy] 跳过 managed 备份：DAM_HOST_MANAGED 未配置或目录不存在" >&2
+        return 0
+    fi
+    out="${BACKUP_DIR}/managed-${stamp}.tar.gz"
+    echo "[deploy] 备份 managed 原件 → ${out}"
+    tar -czf "${out}" -C "$(dirname "${managed_host}")" "$(basename "${managed_host}")"
+    echo "[deploy] 备份完成：${out} ($(du -h "${out}" | cut -f1))"
+}
+
+backup_full() {
+    backup_db
+    backup_managed
+}
+
+# ===== 恢复 Runbook（不自动执行，仅注释中供运维参考） =====
+# 恢复原则：
+#   1. 先在隔离环境（docker compose -p visionsy-restore-test）验证备份完整性。
+#   2. 生产恢复需维护窗口；以下为手动步骤，不提供一键恢复脚本（防止误操作）。
+#
+# 恢复步骤（按顺序）：
+#   1) 停止应用（保留数据卷）：
+#        dc down
+#   2) 恢复数据库：
+#        dc up -d db
+#        zcat backups/visionsy-YYYYMMDD-HHMMSS.sql.gz | dc exec -T db sh -c 'mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" "${MARIADB_DATABASE}"'
+#   3) 恢复 managed 原件：
+#        tar -xzf backups/managed-YYYYMMDD-HHMMSS.tar.gz -C "$(dirname "${DAM_HOST_MANAGED}")"
+#   4) 恢复 APP_KEY：
+#        从密钥管理/安全备份中获取 APP_KEY，写入 .env（容器启动后自动生效）。
+#   5) 启动应用：
+#        dc up -d
+#   6) 迁移（如有新迁移）：
+#        dc exec -T app php artisan migrate --force
+#   7) 健康检查：
+#        curl -fsS http://127.0.0.1:${APP_PORT:-8000}/up
+#   8) 重建派生文件（如有需要）：
+#        dc exec -T app php artisan media:rescan-source --source-id=ALL
+#   9) 清空并重启队列 Worker：
+#        dc restart worker scheduler
+#
+# sources 备份：是否备份取决于来源系统（外部 NAS 等）；VisionSY 只读挂载，不负责其备份。
+# derivatives 不备份：可重建数据，通过扫描重新生成。
+# 校验命令（恢复后执行）：
+#   dc exec app php artisan visionsy:health-diagnostics
+#   dc exec app php artisan media:legacy-stats
+#   dc exec app php artisan media:identity-conflicts
+
+# ===== 发布回滚说明 =====
+# 回滚条件：
+#   - 应用代码回滚：切换到旧镜像标签或重新构建旧 commit 的镜像。
+#   - 数据库回滚：需从备份恢复（migration rollback 不一定安全）。
+#
+# 可逆迁移：
+#   如果迁移有 down() 方法且不破坏数据，可执行：
+#     dc exec app php artisan migrate:rollback --step=N
+#   然后重新部署旧镜像。
+#
+# 不可逆迁移：
+#   如果迁移删除了列/表/数据，rollback 无法完整恢复。必须从备份恢复数据库。
+#   部署前必须确认所有新迁移在备份后的测试环境验证过 rollback。
+#
+# 回滚步骤（简要）：
+#   1) dc down          # 停止服务
+#   2) 从备份恢复数据库（见上方恢复步骤 2）
+#   3) 切换到旧镜像（docker tag 或 rebuild 旧 commit）
+#   4) dc up -d         # 以旧镜像启动
+#   5) dc restart worker scheduler
+#   6) curl /up          # 健康检查
+#
+# 维护窗口：
+#   单机部署无法零停机。up -d 重建容器有秒级中断，请提前通知维护窗口。
+
+optimize() {
+    echo "[deploy] 缓存优化（config/route/view）..."
+    dc exec -T app php artisan config:cache
+    dc exec -T app php artisan route:cache
+    dc exec -T app php artisan view:cache
+}
+
+reload_workers() {
+    echo "[deploy] 重载 worker / scheduler..."
+    dc restart worker scheduler
+}
+
+cmd_install() {
+    require_env
+    echo "[deploy] 首次部署：构建镜像..."
+    dc build
+    echo "[deploy] 启动服务..."
+    dc up -d
+    echo "[deploy] 等待数据库就绪..."
+    dc exec -T app php artisan migrate:status >/dev/null 2>&1 || true
+    echo "[deploy] 执行迁移（php artisan migrate）..."
+    dc exec -T app php artisan migrate --force
+    optimize
+    healthcheck
+    echo "[deploy] 首次部署完成。"
+}
+
+cmd_update() {
+    require_env
+    backup_full
+    echo "[deploy] 构建新镜像..."
+    dc build
+    echo "[deploy] 重建并启动容器（维护窗口：秒级中断）..."
+    dc up -d
+    echo "[deploy] 执行迁移..."
+    dc exec -T app php artisan migrate --force
+    optimize
+    reload_workers
+    healthcheck
+    echo "[deploy] 日常更新完成。"
+}
+
+cmd_status() {
+    require_env
+    dc ps
+}
+
+case "${1:-}" in
+    install) cmd_install ;;
+    update)  cmd_update ;;
+    backup)  backup_full ;;
+    status)  cmd_status ;;
+    *)
+        echo "用法：$0 {install|update|backup|status}" >&2
+        exit 2
+        ;;
+esac

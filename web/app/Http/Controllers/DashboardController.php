@@ -23,7 +23,7 @@ class DashboardController extends Controller
             'user' => $request->user(),
             'clientIp' => $clientIp,
             'isCampusIp' => $campusIpService->isCampusIp($clientIp),
-            'resourceSpaceUrl' => route('media.index'),
+            'mediaLibraryUrl' => route('media.index'),
         ]);
     }
 

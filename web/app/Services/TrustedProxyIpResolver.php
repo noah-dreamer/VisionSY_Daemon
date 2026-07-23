@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
  * 可信真实 IP 解析。
  *
  * 规则（见 README《账号注册与激活流程》IP 透传链路）：
- *   真实客户端 IP 经 CF -> 边缘服务器 Nginx（CF-Connecting-IP 写入 X-Real-IP）
+ *   真实客户端 IP 经 CF -> 边缘服务器（CF-Connecting-IP 写入 X-Real-IP）
  *   -> 反向代理网关（XFF 传递）-> 官网容器。
  * 官网后端仅信任来自 反向代理网关 内网 IP（TRUSTED_PROXY_IPS）的转发头，
  * 其余来源一律使用 TCP 对端地址，防止伪造 X-Real-IP 激活账号。

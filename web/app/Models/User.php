@@ -90,16 +90,4 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->status === UserStatus::Active;
     }
-
-    /** 是否允许通过 SSO 进入 ResourceSpace。 */
-    public function canEnterResourceSpace(): bool
-    {
-        return $this->isActive();
-    }
-
-    /** userinfo 端点用的 ResourceSpace 用户组列表。 */
-    public function resourceSpaceGroups(): array
-    {
-        return [$this->role->resourceSpaceGroup()];
-    }
 }

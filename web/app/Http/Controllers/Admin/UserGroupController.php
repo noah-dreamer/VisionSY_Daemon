@@ -11,7 +11,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * 用户组管理（对齐 ResourceSpace Admin > System > User groups）。
+ * 用户组管理。
  * 权限位 + 高级选项（每日下载限额、IP 限制、注册默认组）统一在官网后台维护。
  */
 class UserGroupController extends Controller

@@ -7,8 +7,7 @@ use App\Models\UserGroup;
 use Illuminate\Database\Seeder;
 
 /**
- * 默认用户组（对齐 ResourceSpace 安装后的默认 usergroup 结构：
- * Administrators / Archivists / General staff / Restricted 的本地化版本）。
+ * 默认用户组。
  * 组权限位覆盖角色默认矩阵；未入组用户按角色回退。
  */
 class UserGroupSeeder extends Seeder

@@ -63,7 +63,7 @@ brew install mailpit && mailpit                     # SMTP 1025 / UI http://loca
 | `student@student.example.com` | normal_user | active | 已激活普通用户 |
 | `pending@student.example.com` | normal_user | pending_activation | 演示校园 IP 激活流程 |
 
-种子同时创建：校园网段 `10.20.0.0/16`、`10.30.0.0/16`（启用）与 `192.168.50.0/24`（禁用）、OAuth 客户端 `resourcespace`（secret 为 `.env` 的 `SEED_RS_CLIENT_SECRET`，默认 `<OAUTH_CLIENT_SECRET>`）、3 条审计日志样例。
+种子同时创建：校园网段 `10.20.0.0/16`、`10.30.0.0/16`（启用）与 `192.168.50.0/24`（禁用）、3 条审计日志样例。
 
 ## 四、本地模拟校园 IP 激活
 

@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  * - token 明文仅在生成响应中返回一次，库中只存 sha256 hash。
  * - 默认 TTL 10 分钟（TRANSFER_TOKEN_TTL_SECONDS 可配）。
  * - 默认一次性使用（TRANSFER_TOKEN_ONE_TIME 可配）。
- * - 校验失败统一返回失败原因，调用方（反向代理网关 / Nginx auth_request）据此回 403。
+ * - 校验失败统一返回失败原因，调用方据此回 403。
  */
 class TransferTokenService
 {

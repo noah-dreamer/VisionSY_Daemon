@@ -21,6 +21,37 @@
                       x-data="mediaUpload()" @submit="submitting = true">
                     @csrf
 
+                    @if($sources->isNotEmpty() && $galleries->isNotEmpty())
+                    <div>
+                        <label for="storage_source_id" class="form-label">存储源</label>
+                        <select id="storage_source_id" name="storage_source_id"
+                                class="form-input">
+                            <option value="">-- 请选择 --</option>
+                            @foreach($sources as $src)
+                                <option value="{{ $src->id }}" {{ old('storage_source_id') == $src->id ? 'selected' : '' }}>
+                                    {{ $src->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('storage_source_id')<p class="form-error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="gallery_id" class="form-label">图库</label>
+                        <select id="gallery_id" name="gallery_id"
+                                class="form-input">
+                            <option value="">-- 请选择 --</option>
+                            @foreach($galleries as $gal)
+                                <option value="{{ $gal->id }}" data-source="{{ $gal->storage_source_id }}"
+                                    {{ old('gallery_id') == $gal->id ? 'selected' : '' }}>
+                                    {{ $gal->name }} ({{ $gal->storageSource?->name ?? '#' . $gal->storage_source_id }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('gallery_id')<p class="form-error">{{ $message }}</p>@enderror
+                    </div>
+                    @endif
+
                     {{-- 拖拽 / 点击选择文件 --}}
                     <div>
                         <label class="form-label" for="file">文件</label>

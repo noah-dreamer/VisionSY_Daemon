@@ -27,6 +27,7 @@ class GenerateMediaDerivatives implements ShouldQueue, ShouldBeUnique
     public function __construct(
         private int $resourceId,
     ) {
+        $this->queue = 'derivatives';
     }
 
     public function uniqueId(): string

@@ -25,7 +25,7 @@
                         把校园的每一次发生，<br>留存为可检索的影像。
                     </h2>
                     <p class="mt-5 text-base leading-relaxed text-white/60">
-                        统一归档、分级取用、自动水印，校园网环境一次登录即可激活账号，免密直达 ResourceSpace 媒体库。
+                        统一归档、分级取用、自动水印，校园网环境一次登录即可激活账号，直达内置媒体库。
                     </p>
                     <dl class="mt-10 grid grid-cols-3 gap-4">
                         @foreach (['分级下载', '自动水印', '校园 IP 激活'] as $f)

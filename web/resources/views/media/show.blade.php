@@ -126,7 +126,7 @@
                         @endif
                     </dl>
 
-                    {{-- 全部内嵌元数据（对齐 ResourceSpace：上传时用 exiftool / exif / getID3 读取的全部标签） --}}
+                    {{-- 全部内嵌元数据（上传时用 exiftool / exif / getID3 读取的全部标签） --}}
                     @if ($resource->metadata)
                         <details class="group rounded-xl border border-ink-100 bg-ink-50/60">
                             <summary class="flex cursor-pointer items-center justify-between px-5 py-3.5 text-sm font-medium text-ink-700 transition hover:text-ink-950">

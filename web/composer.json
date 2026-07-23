@@ -55,7 +55,7 @@
     "prefer-stable": true,
     "suggest": {
         "ext-exif": "读取照片 EXIF 元数据（未装 exiftool 时的回退路径）",
-        "exiftool": "与 ResourceSpace 相同的完整元数据读取（推荐安装，apt install libimage-exiftool-perl）",
+        "exiftool": "完整元数据读取（推荐安装，apt install libimage-exiftool-perl）",
         "ffmpeg": "视频封面抽帧与水印预览（apt install ffmpeg）"
     }
 }

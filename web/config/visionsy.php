@@ -4,10 +4,7 @@
 |--------------------------------------------------------------------------
 | VisionSY 项目配置
 |--------------------------------------------------------------------------
-| 所有真实凭据均不写死在代码中：
-|   - INTERNAL_API_SECRET 生产真实值来自`<SECRET_MANAGER>`
-|   - 数据库凭据来自`<SECRET_MANAGER>` 侧）
-| 域名按 README《域名、端口与反代关系》固定，不使用泛化占位。
+| 所有真实凭据均不写死在代码中：INTERNAL_API_SECRET 生产真实值来自`<SECRET_MANAGER>`。
 */
 
 return [
@@ -18,7 +15,7 @@ return [
         explode(',', (string) env('TRUSTED_PROXY_IPS', '127.0.0.1,10.0.0.30'))
     ))),
 
-    // Nginx / 反向代理网关 / ResourceSpace 调用内部 API 用的共享密钥
+    // 内部 API 共享密钥
     'internal_api_secret' => env('INTERNAL_API_SECRET', ''),
 
     'transfer_token' => [
@@ -27,7 +24,6 @@ return [
     ],
 
     'urls' => [
-        'resourcespace' => env('VISION_RESOURCE_BASE_URL', 'https://media.example.com'),
         'site' => env('VISION_SITE_URL', 'https://www.example.com'),
         'public_site' => env('VISION_PUBLIC_SITE_URL', 'https://example.com'),
         'external_transfer' => env('VISION_EXTERNAL_TRANSFER_BASE_URL', 'https://files.example.com:8443'),
@@ -40,15 +36,6 @@ return [
         'lan' => 'files-internal.example.com',
     ],
 
-    // 角色 -> ResourceSpace 用户组（固定映射，勿改名）
-    'role_group_map' => [
-        'system_admin' => 'visionsy_system_admin',
-        'propaganda_member' => 'visionsy_propaganda_member',
-        'wechat_editor_teacher' => 'visionsy_wechat_editor_teacher',
-        'normal_user' => 'visionsy_normal_user',
-        'guest' => 'visionsy_guest',
-    ],
-
     'oauth' => [
         'code_ttl_seconds' => (int) env('OAUTH_CODE_TTL_SECONDS', 300),
         'access_token_ttl_seconds' => (int) env('OAUTH_ACCESS_TOKEN_TTL_SECONDS', 3600),
@@ -56,10 +43,14 @@ return [
     ],
 
     /*
-    | ---------------- 内置媒体库（DAM，取代独立 ResourceSpace 部署） ----------------
+    | ---------------- 内置媒体库（DAM） ----------------
     | direct_serve = true ：本机直接流式返回文件（本地开发 / 单机部署）。
-    | direct_serve = false：大文件下载走 307 直连（TransferToken + RedirectDecision，
-    |                        与 README「流量分流机制」一致，由网关按 token 放行）。
+    | direct_serve = false：大文件下载走 307 直连（TransferToken + RedirectDecision）。
+    |
+    | DAM 三目录（容器内固定路径，不因平台变化）：
+    |   managed     ：VisionSY 管理的新上传原件，可读写
+    |   sources     ：宿主机挂载的外部图库来源，默认只读
+    |   derivatives ：缩略图/预览/水印派生文件，可重建
     */
     'media' => [
         'direct_serve' => filter_var(env('MEDIA_DIRECT_SERVE', true), FILTER_VALIDATE_BOOL),
@@ -78,9 +69,12 @@ return [
         'watermark_jpeg_quality' => (int) env('MEDIA_WATERMARK_JPEG_QUALITY', 85),
         'watermark_png_compression' => (int) env('MEDIA_WATERMARK_PNG_COMPRESSION', 6),
 
+        'managed_root' => env('MEDIA_MANAGED_ROOT', '/data/visionsy/managed'),
+        'derivatives_root' => env('MEDIA_DERIVATIVES_ROOT', '/data/visionsy/derivatives'),
+
         'allowed_roots' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env('MEDIA_ALLOWED_ROOTS', ''))
+            explode(',', (string) env('MEDIA_ALLOWED_ROOTS', '/data/visionsy/managed,/data/visionsy/sources'))
         ))),
 
         'scan_exclude_patterns' => array_values(array_filter(array_map(
@@ -91,6 +85,9 @@ return [
         'scanner' => [
             'batch_size' => (int) env('MEDIA_SCAN_BATCH_SIZE', 100),
             'checksum_changed_only' => filter_var(env('MEDIA_SCAN_CHECKSUM_CHANGED', true), FILTER_VALIDATE_BOOL),
+            // 扫描锁 stale 阈值（分钟）。必须大于扫描 Job 的最长 timeout（ScanMediaGallery=3600s=60min），
+            // 否则合法的长扫描会被误判为 stale 锁而并发重入。默认 75 分钟。
+            'stale_lock_minutes' => (int) env('MEDIA_SCAN_STALE_LOCK_MINUTES', 75),
         ],
 
         'raw' => [

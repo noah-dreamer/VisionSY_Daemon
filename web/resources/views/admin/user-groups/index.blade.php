@@ -6,7 +6,7 @@
 @section('content')
     <div class="flex items-center justify-between">
         <p class="prose-muted">
-            媒体库权限组（对齐 ResourceSpace 用户组）。组内用户的媒体权限以组的权限位为准；未入组用户按其角色的默认矩阵。
+            媒体库权限组。组内用户的媒体权限以组的权限位为准；未入组用户按其角色的默认矩阵。
         </p>
         <a href="{{ route('admin.user-groups.create') }}" class="btn-primary btn-sm shrink-0">新建用户组</a>
     </div>

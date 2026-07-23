@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * 媒体库用户组（对齐 ResourceSpace usergroup）。
+ * 媒体库用户组。
  * 权限位覆盖角色默认矩阵；用户未入组时按角色回退。
  */
 class UserGroup extends Model

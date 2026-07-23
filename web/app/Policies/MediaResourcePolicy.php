@@ -8,7 +8,7 @@ use App\Models\MediaResource;
 use App\Models\User;
 
 /**
- * 媒体库权限。判定顺序对齐 ResourceSpace：
+ * 媒体库权限。
  * 用户所属**用户组**的权限位优先（后台"用户组"页管理，语义对应 RS 的
  * s / w / T / c / e0 权限串）；用户未入组时回退到角色默认矩阵：
  *

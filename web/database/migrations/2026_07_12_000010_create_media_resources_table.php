@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('mime', 127);
             $table->unsignedBigInteger('size_bytes');
             $table->string('checksum_sha256', 64)->index(); // 重复素材提示
-            // —— 内嵌元数据（对齐 ResourceSpace：上传时读取文件全部标签）——
+            // —— 内嵌元数据（上传时读取文件全部标签）——
             $table->json('metadata')->nullable();          // 全部标签（分组），详情页"全部元数据"
             $table->dateTime('taken_at')->nullable();      // 拍摄时间（EXIF DateTimeOriginal / 容器 CreateDate）
             $table->string('camera', 120)->nullable();     // 相机（Make + Model）

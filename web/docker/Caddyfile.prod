@@ -1,0 +1,25 @@
+# VisionSY 生产 Caddy 片段（由 compose.prod.yaml bind-mount 覆盖主 Caddyfile）
+#
+# 与 Caddyfile（开发/基础）的区别：
+#   - 禁止自动 HTTPS（TLS 由前置反向代理终结）
+#   - 日志使用 JSON 格式（适合日志聚合系统）
+#   - 限速和请求体上限由前置反向代理负责
+{
+	frankenphp
+	order php_server before file_server
+	admin off
+	auto_https off
+}
+
+{$SERVER_NAME::80} {
+	log {
+		output stdout
+		format json
+	}
+
+	root * /app/public
+
+	encode gzip zstd
+
+	php_server
+}

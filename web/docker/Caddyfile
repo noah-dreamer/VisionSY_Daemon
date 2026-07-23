@@ -1,0 +1,25 @@
+# FrankenPHP / Caddy 配置（VisionSY 应用镜像）
+#
+# - Web 根为 /app/public（Laravel 的 public/）。
+# - php_server 指令由 FrankenPHP 处理 PHP 与静态资源。
+# - SERVER_NAME 默认 :80（容器内监听 80；TLS 通常由前置反向代理终结）。
+# - 日志输出到 stdout/stderr，便于 docker logs 收集。
+# - X-Forwarded-* 头由上游反向代理设置，Caddy 透传到 PHP；Laravel TrustProxies 处理。
+{
+	frankenphp
+	order php_server before file_server
+	admin off
+}
+
+{$SERVER_NAME::80} {
+	log {
+		output stdout
+		format console
+	}
+
+	root * /app/public
+
+	encode gzip zstd
+
+	php_server
+}

@@ -1,0 +1,39 @@
+# 构建上下文 = web/。排除不应进入应用镜像的内容。
+
+# 版本控制与 IDE
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+*.log
+
+# 环境与秘密（任何 .env 都不进镜像）
+.env
+.env.*
+!.env.example
+
+# 依赖（由 vendor / frontend 构建阶段提供，避免复制本机产物）
+vendor/
+node_modules/
+
+# 前端构建产物（由 frontend 阶段生成）
+public/build
+public/hot
+
+# 运行时数据（由 Dockerfile 重建目录结构；数据经卷挂载）
+storage/*
+bootstrap/cache/*
+
+# 本地数据库与测试缓存
+database/*.sqlite
+database/*.sqlite-journal
+.phpunit.result.cache
+.phpunit.cache
+coverage/
+
+# 系统与杂项
+.DS_Store
+Thumbs.db
+npm-debug.log
+yarn-error.log
