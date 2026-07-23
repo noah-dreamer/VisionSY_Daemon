@@ -10,17 +10,15 @@
 > - **用户/用户组/权限统一在官网后台管理**：权限位 + 每日下载限额 + IP 限制 + 注册默认组，与账号体系同库同后台，零割裂；
 > - **注册邮箱验证码**：注册后发送 6 位数字验证码（10 分钟有效、60 秒重发冷却、5 次尝试上限）；
 > - **登录人机验证**：直接接入开源 [PlayCaptcha](https://github.com/mortspace/playcaptcha)（React 抓娃娃机组件，npm 包 + 官方素材，服务端叠加一次性挑战/耗时下限/一次性 token 防线）；
-> - **一键测试（Docker）**：`.vscode/tasks.json` 提供「初始化开发环境 (Docker)」「启动 (Docker)」任务，Docker Compose + FrankenPHP + MariaDB，开箱即用（见下方 Quick Start）；
+> - **一键测试（Docker）**：`.vscode/tasks.json` 提供「初始化开发环境 (Docker)」「一键部署 (开发)」任务，Docker Compose + FrankenPHP + MariaDB，开箱即用（见下方 Quick Start）；
 >
 >
-> **Quick Start（Docker Compose，推荐）**：安装 Docker Desktop 后，打开仓库 → `Ctrl/Cmd+Shift+P` → *Tasks: Run Task* → **VisionSY: 初始化开发环境 (Docker)**（首次）→ **VisionSY: 启动 (Docker)** → 访问 <http://localhost:8000>（Vite HMR :5173）。
+> **Quick Start（Docker Compose，推荐）**：安装 Docker Desktop 后，打开仓库 → `Ctrl/Cmd+Shift+P` → *Tasks: Run Task* → **VisionSY: 初始化开发环境 (Docker)**（首次）→ **VisionSY: 一键部署 (开发)**（日常：构建+启动+迁移）→ 访问 <http://localhost:8000>（Vite HMR :5173）。
 > 命令行方式见 [`deploy/docker/README.md`](deploy/docker/README.md)。
 > 种子账号密码统一 `visionsy-dev`：`admin@example.com`（管理员）、`media@example.com`（宣传部，可上传/下原图）、`teacher@example.com`（官微编辑）、`student@student.example.com`（普通用户，仅水印图）。
 >
-> **可选：原生 PHP + Vite**（不依赖 Docker）：见 [`web/README.md`](web/README.md)「本地快速开始」，使用 SQLite + `php artisan serve`。
 >
 > 依赖（Docker 方式）：Docker Desktop（Windows）或 Docker Engine + Compose（Linux）。
-> 依赖（原生方式）：PHP ≥ 8.2（含 **ext-gd**）、Composer、Node.js ≥ 18。
 
 [English](#english) | [简体中文](#简体中文)
 
@@ -58,7 +56,6 @@ VisionSY/
 │   ├── routes/
 │   ├── tests/
 │   ├── docs/
-│   ├── .env.example
 │   ├── composer.json
 │   ├── package.json
 │   └── vite.config.js
@@ -153,19 +150,6 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app p
 
 See [`deploy/docker/README.md`](deploy/docker/README.md) for full details (Windows/Linux DAM mounts, production deploy).
 
-Optional **native** development (no Docker; SQLite + `php artisan serve`): go to the `web/` directory:
-
-```bash
-cd web
-composer install
-npm install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
-npm run dev
-php artisan serve
-```
-
 ## License
 
 License information will be added in [`LICENSE`](LICENSE).
@@ -207,7 +191,6 @@ VisionSY/
 │   ├── tests/
 │   ├── docs/
 │   ├── artisan
-│   ├── .env.example
 │   ├── composer.json
 │   ├── package.json
 │   └── vite.config.js
@@ -298,19 +281,6 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app p
 ```
 
 完整说明（Windows/Linux DAM 挂载、生产部署）见 [`deploy/docker/README.md`](deploy/docker/README.md)。
-
-**可选：原生方式**（不依赖 Docker；SQLite + `php artisan serve`），进入 `web/` 目录：
-
-```bash
-cd web
-composer install
-npm install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
-npm run dev
-php artisan serve
-```
 
 ## 许可证
 

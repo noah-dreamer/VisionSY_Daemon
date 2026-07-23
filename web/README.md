@@ -38,8 +38,6 @@ web/
 ├── routes/         # web.php、console.php 等
 ├── tests/          # Feature 测试（OAuth 流程、校园激活、后台、鉴权…）
 ├── public/  bootstrap/
-├── docs/local-dev.md   # 本地开发完整指南
-├── .env.example
 ├── composer.json  package.json
 └── phpunit.xml
 ```
@@ -60,23 +58,6 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app p
 #   Web http://localhost:8000 · Vite HMR http://localhost:5173
 ```
 
-**可选：原生方式**（不依赖 Docker，SQLite + `php artisan serve`）。完整版见 `docs/local-dev.md`，简版：
-
-在 VS Code 中运行任务（原生）或手动：
-
-```bash
-cp .env.dev.example .env    # 一键测试环境：SQLite + 文件缓存 + 邮件写日志
-composer install
-npm install
-touch database/database.sqlite
-php artisan key:generate
-php artisan migrate --seed
-php artisan test            # 测试用 sqlite 内存库
-php artisan serve           # 终端 1：http://127.0.0.1:8000
-npm run dev                 # 终端 2：保存即刷新（生产才 npm run build）
-```
-
-种子账号密码统一 `<LOCAL_DEV_PASSWORD>`：`admin@example.com`（后台）、`media@example.com`（宣传部 / 原图组）、`teacher@example.com`（官微老师）、`student@student.example.com`（已激活）、`pending@student.example.com`（演示校园 IP 激活）。
 
 ---
 

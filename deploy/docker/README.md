@@ -154,7 +154,7 @@ DAM_HOST_DERIVATIVES=./data/derivatives
 - Vite 与 `app` 共享源码绑定挂载，`public/hot` 对 `app` 可见，`@vite` 自动走 HMR。
 - 若 HMR WebSocket 在 Docker 下解析到错误主机（如 `0.0.0.0`），可在 `web/vite.config.js`
   设置 `server.origin: 'http://localhost:5173'`；或在宿主机直接 `npm run dev`
-  （原生方式，见 `web/README.md`）作为可靠回退。
+  作为可靠回退。
 
 ---
 
