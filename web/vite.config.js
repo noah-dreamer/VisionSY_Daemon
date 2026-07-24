@@ -8,6 +8,7 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                'resources/js/intranet-probe.js',
                 'resources/js/claw-captcha.jsx', // PlayCaptcha（React 岛，仅登录页加载）
             ],
             // 开发时保存以下路径中的文件会触发浏览器整页刷新，

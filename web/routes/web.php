@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AuditLogController;
-use App\Http\Controllers\Admin\CampusIpRangeController;
 use App\Http\Controllers\Admin\GalleryController as AdminGalleryController;
 use App\Http\Controllers\Admin\StorageSourceController;
 use App\Http\Controllers\Admin\UserController;
@@ -129,12 +128,6 @@ Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->gr
 
     Route::post('/media/{mediaResource}/retry-derivatives', [App\Http\Controllers\Admin\DerivativeRetryController::class, 'retryResource'])->name('media.retry-derivatives');
     Route::post('/galleries/{gallery}/retry-derivatives', [App\Http\Controllers\Admin\DerivativeRetryController::class, 'retryGallery'])->name('galleries.retry-derivatives');
-
-    Route::get('/campus-ips', [CampusIpRangeController::class, 'index'])->name('campus-ips.index');
-    Route::post('/campus-ips', [CampusIpRangeController::class, 'store'])->name('campus-ips.store');
-    Route::put('/campus-ips/{range}', [CampusIpRangeController::class, 'update'])->name('campus-ips.update');
-    Route::post('/campus-ips/{range}/toggle', [CampusIpRangeController::class, 'toggle'])->name('campus-ips.toggle');
-    Route::delete('/campus-ips/{range}', [CampusIpRangeController::class, 'destroy'])->name('campus-ips.destroy');
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 });

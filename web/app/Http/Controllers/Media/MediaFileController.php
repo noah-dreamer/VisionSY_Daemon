@@ -152,7 +152,8 @@ class MediaFileController extends Controller
         }
 
         $ipResolver = app(TrustedProxyIpResolver::class);
-        $decision = app(RedirectDecisionService::class)->decide($ipResolver->resolve($request));
+        $isCampus = $request->boolean('is_campus');
+        $decision = app(RedirectDecisionService::class)->decide($isCampus);
 
         $token = app(TransferTokenService::class)->generate(
             user: $request->user(),

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\CampusIpRange;
 use App\Models\TransferToken;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,35 +34,32 @@ class TransferTokenApiTest extends TestCase
             ->assertStatus(401);
     }
 
-    public function test_generate_token_for_external_ip_targets_ssy(): void
+    public function test_generate_token_for_external_network(): void
     {
         $response = $this->issueToken();
 
         $response->assertStatus(201)->assertJson([
             'target_host' => 'files.example.com',
             'target_base_url' => 'https://files.example.com:8443',
-            'reason' => 'external_ip',
+            'reason' => 'external_network',
         ]);
 
         $token = $response->json('token');
         $this->assertNotEmpty($token);
 
-        // 库中只存 hash，不存明文
         $this->assertDatabaseHas('transfer_tokens', ['token_hash' => hash('sha256', $token)]);
         $this->assertDatabaseMissing('transfer_tokens', ['token_hash' => $token]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'transfer_token.generated']);
     }
 
-    public function test_generate_token_for_campus_ip_targets_lan_ssy(): void
+    public function test_generate_token_for_intranet_targets_lan(): void
     {
-        CampusIpRange::create(['cidr' => '10.20.0.0/16', 'enabled' => true]);
-
-        $this->issueToken(['client_ip' => '10.20.5.5'])
+        $this->issueToken(['is_campus' => true])
             ->assertStatus(201)
             ->assertJson([
                 'target_host' => 'files-internal.example.com',
                 'target_base_url' => 'https://files-internal.example.com:8443',
-                'reason' => 'campus_ip_matched',
+                'reason' => 'campus_intranet_probe',
             ]);
     }
 
@@ -161,12 +157,10 @@ class TransferTokenApiTest extends TestCase
 
     public function test_redirect_decision_endpoint(): void
     {
-        CampusIpRange::create(['cidr' => '10.20.0.0/16', 'enabled' => true]);
+        $this->getJson('/api/redirect-decision?is_campus=1', $this->authHeader)
+            ->assertOk()->assertJson(['target_host' => 'files-internal.example.com', 'reason' => 'campus_intranet_probe']);
 
-        $this->getJson('/api/redirect-decision?client_ip=10.20.0.9', $this->authHeader)
-            ->assertOk()->assertJson(['target_host' => 'files-internal.example.com', 'reason' => 'campus_ip_matched']);
-
-        $this->getJson('/api/redirect-decision?client_ip=8.8.8.8', $this->authHeader)
-            ->assertOk()->assertJson(['target_host' => 'files.example.com', 'reason' => 'external_ip']);
+        $this->getJson('/api/redirect-decision?is_campus=0', $this->authHeader)
+            ->assertOk()->assertJson(['target_host' => 'files.example.com', 'reason' => 'external_network']);
     }
 }

@@ -88,6 +88,19 @@ services:
       - artisan
       - schedule:work
 
+  # ---------- 内网探测端点（仅内网可达，不对外暴露） ----------
+  intranet-probe:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${INTRANET_PROBE_BIND:-127.0.0.1:8099}:80"
+    volumes:
+      - ./intranet-probe/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - visionsy
+    healthcheck:
+      disable: true
+
   # ---------- 数据库（MariaDB，固定版本） ----------
   db:
     image: mariadb:11.4

@@ -123,6 +123,8 @@ return [
     ],
 
     // ---------------- 邮箱验证码（注册后 6 位数字验证码） ----------------
+    'intranet_probe_url' => env('INTRANET_PROBE_URL', 'http://127.0.0.1:8099'),
+
     'email_code' => [
         'ttl_seconds' => (int) env('EMAIL_CODE_TTL_SECONDS', 600),
         'resend_cooldown_seconds' => (int) env('EMAIL_CODE_RESEND_COOLDOWN', 60),

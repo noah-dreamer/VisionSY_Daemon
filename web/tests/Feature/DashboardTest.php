@@ -53,6 +53,6 @@ class DashboardTest extends TestCase
             ->assertOk()
             ->assertSee('VisionSY')
             ->assertSee('分级下载')
-            ->assertSee('校园 IP 激活');
+            ->assertSee('校园网激活');
     }
 }

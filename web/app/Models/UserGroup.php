@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\CampusIpService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -75,11 +74,58 @@ class UserGroup extends Model
         }
 
         foreach (array_filter(array_map('trim', explode(',', $restriction))) as $cidr) {
-            if (CampusIpService::cidrMatch($ip, $cidr)) {
+            if (self::cidrMatch($ip, $cidr)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /** 通用 CIDR 匹配，IPv4 / IPv6 通吃。 */
+    private static function cidrMatch(string $ip, string $cidr): bool
+    {
+        if (! str_contains($cidr, '/')) {
+            $cidr .= str_contains($cidr, ':') ? '/128' : '/32';
+        }
+
+        [$subnet, $bits] = explode('/', $cidr, 2);
+        if (! ctype_digit($bits)) {
+            return false;
+        }
+        $bits = (int) $bits;
+
+        $ipBin = @inet_pton($ip);
+        $subnetBin = @inet_pton($subnet);
+        if ($ipBin === false || $subnetBin === false) {
+            return false;
+        }
+
+        if (strlen($ipBin) !== strlen($subnetBin)) {
+            return false;
+        }
+
+        $maxBits = strlen($ipBin) * 8;
+        if ($bits < 0 || $bits > $maxBits) {
+            return false;
+        }
+        if ($bits === 0) {
+            return true;
+        }
+
+        $fullBytes = intdiv($bits, 8);
+        $remainder = $bits % 8;
+
+        if ($fullBytes > 0 && substr($ipBin, 0, $fullBytes) !== substr($subnetBin, 0, $fullBytes)) {
+            return false;
+        }
+
+        if ($remainder === 0) {
+            return true;
+        }
+
+        $mask = ~(0xFF >> $remainder) & 0xFF;
+
+        return (ord($ipBin[$fullBytes]) & $mask) === (ord($subnetBin[$fullBytes]) & $mask);
     }
 }

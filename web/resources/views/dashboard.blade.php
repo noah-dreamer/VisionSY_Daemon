@@ -2,6 +2,10 @@
 
 @section('title', '控制台 · VisionSY')
 
+@push('head')
+    <meta name="intranet-probe-url" content="{{ $intranetProbeUrl }}">
+@endpush
+
 @section('content')
     <section class="shell py-6 sm:py-10">
         <div class="mx-auto max-w-4xl space-y-6">
@@ -42,23 +46,18 @@
                             </div>
                         </div>
 
-                        <dl class="grid gap-4 rounded-xl border border-ink-100 bg-ink-50/60 p-5 sm:grid-cols-2">
-                            <div>
-                                <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">当前检测到的真实 IP</dt>
-                                <dd class="mt-1 font-mono text-sm text-ink-900">{{ $clientIp ?? '未知' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">网络环境判定</dt>
-                                <dd class="mt-1 flex items-center gap-2 text-sm {{ $isCampusIp ? 'text-emerald-600' : 'text-amber-600' }}">
-                                    <span class="h-2 w-2 rounded-full {{ $isCampusIp ? 'bg-emerald-500' : 'bg-amber-500' }}"></span>
-                                    {{ $isCampusIp ? '校园网' : '非校园网' }}
-                                </dd>
-                            </div>
-                        </dl>
+                        <div class="rounded-xl border border-ink-100 bg-ink-50/60 p-5">
+                            <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">连接方式</dt>
+                            <dd id="network-status" class="mt-1 flex items-center gap-2 text-sm text-ink-400">
+                                <span class="h-2 w-2 rounded-full bg-ink-300"></span>
+                                检测中...
+                            </dd>
+                        </div>
 
-                        <form method="POST" action="{{ route('dashboard.recheck') }}">
+                        <form id="recheck-form" method="POST" action="{{ route('dashboard.recheck') }}">
                             @csrf
-                            <button type="submit" class="btn-primary">重新检测当前网络</button>
+                            <input type="hidden" name="is_campus" id="recheck-is-campus" value="0">
+                            <button type="submit" id="recheck-btn" class="btn-primary" disabled>检测中...</button>
                         </form>
 
                     @elseif ($user->status->value === 'disabled')
@@ -81,8 +80,11 @@
 
                         <dl class="grid gap-4 rounded-xl border border-ink-100 bg-ink-50/60 p-5 sm:grid-cols-3">
                             <div>
-                                <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">当前 IP</dt>
-                                <dd class="mt-1 font-mono text-sm text-ink-900">{{ $clientIp ?? '未知' }}</dd>
+                                <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">连接方式</dt>
+                                <dd id="network-status" class="mt-1 flex items-center gap-2 text-sm text-ink-400">
+                                    <span class="h-2 w-2 rounded-full bg-ink-300"></span>
+                                    检测中...
+                                </dd>
                             </div>
                             <div>
                                 <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">激活时间</dt>
@@ -117,12 +119,9 @@
                         <x-feature-icon path="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0a8.95 8.95 0 0 0 4.5-1.2M3.6 9h16.8M3.6 15h16.8M12 3a13.4 13.4 0 0 1 0 18 13.4 13.4 0 0 1 0-18Z" />
                         <div class="min-w-0">
                             <h3 class="h-card">账号与网络状态</h3>
-                            <p class="mt-1 prose-muted">当前 IP <span class="font-mono text-ink-700">{{ $clientIp ?? '未知' }}</span></p>
+                            <p id="network-card-status" class="mt-1 prose-muted text-ink-400">检测中...</p>
                             @if ($user->status->value === 'pending_activation')
-                                <form method="POST" action="{{ route('dashboard.recheck') }}" class="mt-3">
-                                    @csrf
-                                    <button type="submit" class="btn-secondary btn-sm">重新检测校园网</button>
-                                </form>
+                                <button type="button" id="recheck-btn-2" class="btn-secondary btn-sm mt-3" disabled>检测中...</button>
                             @endif
                         </div>
                     </div>
@@ -133,7 +132,7 @@
                 <div class="card flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
                     <div>
                         <h2 class="h-card">管理后台</h2>
-                        <p class="mt-1 prose-muted">用户、校园网段与审计日志管理。</p>
+                        <p class="mt-1 prose-muted">用户、审计日志与系统管理。</p>
                     </div>
                     <a href="{{ route('admin.dashboard') }}" class="btn-secondary shrink-0">进入后台</a>
                 </div>
@@ -141,3 +140,53 @@
         </div>
     </section>
 @endsection
+
+@push('scripts')
+<script type="module">
+import { probeIntranet } from '{{ Vite::asset('resources/js/intranet-probe.js') }}';
+
+function renderConnectionType(el, isCampus) {
+    el.className = 'mt-1 flex items-center gap-2 text-sm ' + (isCampus ? 'text-emerald-600' : 'text-amber-600');
+    el.innerHTML = '<span class="h-2 w-2 rounded-full ' + (isCampus ? 'bg-emerald-500' : 'bg-amber-500') + '"></span>'
+        + (isCampus ? '直连服务器' : '中转连接服务器');
+}
+
+(async () => {
+    const isCampus = await probeIntranet();
+    const statusEl = document.getElementById('network-status');
+    const cardStatusEl = document.getElementById('network-card-status');
+    const formEl = document.getElementById('recheck-form');
+    const btnEl = document.getElementById('recheck-btn');
+    const btn2El = document.getElementById('recheck-btn-2');
+    const isCampusInput = document.getElementById('recheck-is-campus');
+
+    if (isCampusInput) isCampusInput.value = isCampus ? '1' : '0';
+
+    if (statusEl) {
+        renderConnectionType(statusEl, isCampus);
+    }
+
+    if (cardStatusEl) {
+        cardStatusEl.textContent = '连接方式：' + (isCampus ? '直连服务器' : '中转连接服务器');
+    }
+
+    if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.textContent = '重新检测当前网络';
+    }
+    if (btn2El) {
+        btn2El.disabled = false;
+        btn2El.textContent = '重新检测校园网';
+        btn2El.addEventListener('click', () => {
+            if (isCampusInput) isCampusInput.value = isCampus ? '1' : '0';
+            formEl?.submit();
+        });
+    }
+    if (formEl) {
+        formEl.addEventListener('submit', () => {
+            if (isCampusInput) isCampusInput.value = isCampus ? '1' : '0';
+        });
+    }
+})();
+</script>
+@endpush

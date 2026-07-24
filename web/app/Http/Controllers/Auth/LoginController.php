@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\AccountActivationService;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +21,6 @@ class LoginController extends Controller
 
     public function store(
         Request $request,
-        AccountActivationService $activation,
         AuditLogger $audit,
     ): RedirectResponse {
         $credentials = $request->validate([
@@ -78,9 +76,6 @@ class LoginController extends Controller
         $user->forceFill(['last_login_at' => now()])->save();
 
         $audit->log('user.logged_in', $user, 'user', (string) $user->id);
-
-        // 登录即检查校园 IP，命中则激活账号
-        $activation->attemptActivation($user, $request);
 
         return redirect()->intended(route('dashboard'));
     }

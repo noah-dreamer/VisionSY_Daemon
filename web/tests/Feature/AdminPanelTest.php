@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
-use App\Models\CampusIpRange;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -104,45 +103,21 @@ class AdminPanelTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'admin.user_password_reset']);
     }
 
-    public function test_campus_cidr_management_is_audited(): void
-    {
-        $admin = $this->admin();
-
-        $this->actingAs($admin)->post('/admin/campus-ips', [
-            'cidr' => '10.99.0.0/16',
-            'description' => '宿舍区',
-        ])->assertRedirect();
-
-        $range = CampusIpRange::where('cidr', '10.99.0.0/16')->firstOrFail();
-        $this->assertTrue($range->enabled);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'admin.campus_ip_created']);
-
-        $this->actingAs($admin)->post("/admin/campus-ips/{$range->id}/toggle")->assertRedirect();
-        $this->assertFalse($range->fresh()->enabled);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'admin.campus_ip_disabled']);
-
-        $this->actingAs($admin)->delete("/admin/campus-ips/{$range->id}")->assertRedirect();
-        $this->assertDatabaseMissing('campus_ip_ranges', ['id' => $range->id]);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'admin.campus_ip_deleted']);
-    }
-
-    public function test_invalid_cidr_is_rejected(): void
-    {
-        $this->actingAs($this->admin())
-            ->from('/admin/campus-ips')
-            ->post('/admin/campus-ips', ['cidr' => 'not-a-cidr/99'])
-            ->assertSessionHasErrors('cidr');
-    }
-
     public function test_audit_log_page_lists_entries(): void
     {
         $admin = $this->admin();
 
-        $this->actingAs($admin)->post('/admin/campus-ips', ['cidr' => '10.88.0.0/16']);
+        $this->actingAs($admin)->post('/admin/users', [
+            'display_name' => '测试用户',
+            'real_name' => '测试',
+            'email' => 'test@example.com',
+            'role' => 'normal_user',
+            'password' => 'test-password-123',
+        ]);
 
         $this->actingAs($admin)
-            ->get('/admin/audit-logs?action=campus_ip')
+            ->get('/admin/audit-logs')
             ->assertOk()
-            ->assertSee('admin.campus_ip_created');
+            ->assertSee('admin.user_created');
     }
 }

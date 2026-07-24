@@ -2,6 +2,10 @@
 
 @section('title', $resource->title.' · 媒体库 · VisionSY')
 
+@push('head')
+    <meta name="intranet-probe-url" content="{{ config('visionsy.intranet_probe_url') }}">
+@endpush
+
 @section('content')
     <section class="shell py-12 sm:py-16">
         <div class="mx-auto max-w-5xl space-y-6">
@@ -58,13 +62,13 @@
                         <div class="flex shrink-0 flex-col gap-2">
                             @auth
                                 @if ($canDownloadOriginal)
-                                    <a href="{{ route('media.download.original', $resource) }}" class="btn-primary">
+                                    <a href="{{ route('media.download.original', $resource) }}" class="btn-primary intranet-download-link">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                                         下载无水印原图
                                     </a>
                                 @endif
                                 @if ($canDownloadWatermarked && $resource->has_preview)
-                                    <a href="{{ route('media.download.watermarked', $resource) }}" class="btn-secondary">下载带水印压缩图</a>
+                                    <a href="{{ route('media.download.watermarked', $resource) }}" class="btn-secondary intranet-download-link">下载带水印压缩图</a>
                                 @endif
                                 @if (! $canDownloadOriginal && ! $canDownloadWatermarked)
                                     <div class="alert-warning max-w-xs">
@@ -176,3 +180,18 @@
         </div>
     </section>
 @endsection
+
+@push('scripts')
+<script type="module">
+import { probeIntranet } from '{{ Vite::asset('resources/js/intranet-probe.js') }}';
+
+(async () => {
+    const isCampus = await probeIntranet();
+    const param = isCampus ? 'is_campus=1' : 'is_campus=0';
+    document.querySelectorAll('.intranet-download-link').forEach(link => {
+        const sep = link.href.includes('?') ? '&' : '?';
+        link.href += sep + param;
+    });
+})();
+</script>
+@endpush

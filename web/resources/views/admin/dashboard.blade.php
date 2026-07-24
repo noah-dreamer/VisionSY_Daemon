@@ -4,12 +4,11 @@
 @section('page-title', '概览')
 
 @section('content')
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <x-stat-card label="用户总数" :value="$stats['total_users']" />
         <x-stat-card label="已激活" :value="$stats['active_users']" tone="text-emerald-600" />
         <x-stat-card label="待激活" :value="$stats['pending_activation']" tone="text-amber-600" />
         <x-stat-card label="已禁用" :value="$stats['disabled_users']" tone="text-red-600" />
-        <x-stat-card label="启用网段" :value="$stats['campus_ranges']" tone="text-brand-600" />
         <x-stat-card label="媒体素材" :value="$stats['media_resources']" tone="text-brand-600" />
     </div>
 
@@ -41,10 +40,6 @@
             <div class="mt-4 space-y-2">
                 <a href="{{ route('admin.users.create') }}" class="flex items-center justify-between rounded-xl border border-ink-100 px-4 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-200 hover:bg-ink-50">
                     创建实名账号
-                    <svg class="h-4 w-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </a>
-                <a href="{{ route('admin.campus-ips.index') }}" class="flex items-center justify-between rounded-xl border border-ink-100 px-4 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-200 hover:bg-ink-50">
-                    管理校园出口 IP
                     <svg class="h-4 w-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </a>
             </div>

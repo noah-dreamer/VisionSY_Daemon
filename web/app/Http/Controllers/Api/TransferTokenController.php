@@ -34,10 +34,10 @@ class TransferTokenController extends Controller
             'client_ip' => ['required', 'ip'],
             'ttl_seconds' => ['nullable', 'integer', 'min:30', 'max:3600'],
             'one_time' => ['nullable', 'boolean'],
+            'is_campus' => ['nullable', 'boolean'],
         ]);
 
-        // 按真实客户端 IP 判定直连目标（校内 -> lan-ssy，校外 -> ssy）
-        $decision = $this->redirects->decide($validated['client_ip']);
+        $decision = $this->redirects->decide((bool) ($validated['is_campus'] ?? false));
 
         $user = isset($validated['user_id']) ? User::find($validated['user_id']) : null;
 
@@ -120,13 +120,13 @@ class TransferTokenController extends Controller
         return response()->json(['ok' => true, 'used_at' => $result['record']->used_at->toIso8601String()]);
     }
 
-    /** GET /api/redirect-decision —— 仅按 IP 返回 307 目标。 */
+    /** GET /api/redirect-decision —— 按 is_campus 返回 307 目标。 */
     public function redirectDecision(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'client_ip' => ['required', 'ip'],
+            'is_campus' => ['nullable', 'boolean'],
         ]);
 
-        return response()->json($this->redirects->decide($validated['client_ip']));
+        return response()->json($this->redirects->decide((bool) ($validated['is_campus'] ?? false)));
     }
 }

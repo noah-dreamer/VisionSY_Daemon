@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="description" content="VisionSY 校园媒体资产管理系统 · 统一归档、分级取用、校园网激活。">
     <title>@yield('title', 'VisionSY · 校园媒体资产管理系统')</title>
+    @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="flex min-h-screen flex-col bg-ink-50 text-ink-900">
@@ -138,5 +139,6 @@
     </main>
 
     <x-site-footer />
+    @stack('scripts')
 </body>
 </html>

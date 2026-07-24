@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\UserRole;
 use App\Models\AuditLog;
-use App\Models\CampusIpRange;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -57,28 +56,17 @@ class DatabaseSeeder extends Seeder
             'password_hash' => $password,
         ]);
 
-        // 6. 学校公网出口 IP（白名单匹配的是校内用户经 NAT 出网后、CF 透传给官网的公网 IP，
-        //    不是内网 10.x 网段。下面是文档示例占位，上线请在后台替换为学校真实出口 IP）
-        foreach ([
-            ['cidr' => '203.0.113.10/32', 'description' => '学校公网出口 IP（示例，请替换为真实出口 IP）', 'enabled' => true],
-            ['cidr' => '198.51.100.0/24', 'description' => '学校多出口公网段（多线出口时按需添加，示例）', 'enabled' => true],
-            ['cidr' => '192.0.2.0/24', 'description' => '旧出口网段（停用示例）', 'enabled' => false],
-        ] as $range) {
-            CampusIpRange::create($range);
-        }
-
-        // 7. 默认用户组（媒体库权限组）
+        // 6. 默认用户组（媒体库权限组）
         $this->call(UserGroupSeeder::class);
 
         // 9. 媒体库演示素材（GD 生成示例照片，走完整入库 + 水印流程）
         $this->call(MediaDemoSeeder::class);
 
-        // 10. 审计日志样例
+        // 9. 审计日志样例
         $admin = User::where('email', 'admin@example.com')->first();
         foreach ([
             ['action' => 'admin.user_created', 'context' => ['email' => 'media@example.com', 'role' => 'propaganda_member']],
-            ['action' => 'admin.campus_ip_created', 'context' => ['cidr' => '10.20.0.0/16']],
-            ['action' => 'user.activated_by_campus_ip', 'context' => ['ip' => '10.20.0.66', 'cidr' => '10.20.0.0/16']],
+            ['action' => 'user.activated_by_intranet_probe', 'context' => ['ip' => '10.20.0.66']],
         ] as $log) {
             AuditLog::create([
                 'actor_id' => $admin->id,
