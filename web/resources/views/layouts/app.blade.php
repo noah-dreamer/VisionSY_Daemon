@@ -125,7 +125,7 @@
 
     {{-- 内页（非 hero 页）默认 light tone：悬浮导航呈现与首页白底区一致的熏色玻璃质感；
          带 hero 的页面由各 section 自行声明 data-nav-tone。 --}}
-    <main id="main" class="flex-1 {{ $overHero ? '' : 'pt-16' }}" data-nav-tone="{{ $overHero ? 'dark' : 'light' }}">
+    <main id="main" class="flex flex-1 flex-col {{ $overHero ? '' : 'pt-16' }}" data-nav-tone="{{ $overHero ? 'dark' : 'light' }}">
         @if (session('status'))
             <div class="shell pt-6">
                 <div class="alert-success" role="status">

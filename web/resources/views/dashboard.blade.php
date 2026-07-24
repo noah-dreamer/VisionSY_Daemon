@@ -7,7 +7,7 @@
 @endpush
 
 @section('content')
-    <section class="shell py-6 sm:py-10">
+    <section class="shell flex flex-1 flex-col justify-center py-6 sm:py-10">
         <div class="mx-auto max-w-4xl space-y-6">
 
             {{-- 顶部状态卡片 --}}
@@ -81,7 +81,7 @@
                         <dl class="grid gap-4 rounded-xl border border-ink-100 bg-ink-50/60 p-5 sm:grid-cols-3">
                             <div>
                                 <dt class="text-xs font-medium uppercase tracking-wider text-ink-400">连接方式</dt>
-                                <dd id="network-status" class="mt-1 flex items-center gap-2 text-sm text-ink-400">
+                                <dd id="network-status" class="mt-1 inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-ink-100 px-2.5 py-1 text-xs text-ink-600">
                                     <span class="h-2 w-2 rounded-full bg-ink-300"></span>
                                     检测中...
                                 </dd>
@@ -96,35 +96,6 @@
                             </div>
                         </dl>
                     @endif
-                </div>
-            </div>
-
-            {{-- 服务卡片 --}}
-            <div class="grid gap-4 sm:grid-cols-2">
-                @php
-                    $isActive = $user->status->value === 'active';
-                @endphp
-                <a href="{{ $isActive ? $mediaLibraryUrl : '#' }}"
-                   class="card {{ $isActive ? 'card-hover' : 'pointer-events-none opacity-60' }} group flex items-start gap-4 p-6"
-                   @if(!$isActive) aria-disabled="true" tabindex="-1" @endif>
-                    <x-feature-icon path="M2.25 12.76V19.5a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25v-6.74M21 8.25 12 13 3 8.25 12 3.5l9 4.75Z" class="group-hover:bg-brand-600 group-hover:text-white group-hover:ring-brand-600" />
-                    <div>
-                        <h3 class="h-card">VisionSY 媒体库</h3>
-                        <p class="mt-1 prose-muted">{{ $isActive ? '按权限检索、预览与下载素材。' : '激活后即可下载素材。' }}</p>
-                    </div>
-                </a>
-
-                <div class="card p-6">
-                    <div class="flex items-start gap-4">
-                        <x-feature-icon path="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0a8.95 8.95 0 0 0 4.5-1.2M3.6 9h16.8M3.6 15h16.8M12 3a13.4 13.4 0 0 1 0 18 13.4 13.4 0 0 1 0-18Z" />
-                        <div class="min-w-0">
-                            <h3 class="h-card">账号与网络状态</h3>
-                            <p id="network-card-status" class="mt-1 prose-muted text-ink-400">检测中...</p>
-                            @if ($user->status->value === 'pending_activation')
-                                <button type="button" id="recheck-btn-2" class="btn-secondary btn-sm mt-3" disabled>检测中...</button>
-                            @endif
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -146,18 +117,39 @@
 import { probeIntranet } from '{{ Vite::asset('resources/js/intranet-probe.js') }}';
 
 function renderConnectionType(el, isCampus) {
-    el.className = 'mt-1 flex items-center gap-2 text-sm ' + (isCampus ? 'text-emerald-600' : 'text-amber-600');
-    el.innerHTML = '<span class="h-2 w-2 rounded-full ' + (isCampus ? 'bg-emerald-500' : 'bg-amber-500') + '"></span>'
-        + (isCampus ? '直连服务器' : '中转连接服务器');
+    const isCapsule = el.classList.contains('rounded-full');
+
+    if (isCapsule) {
+        el.classList.remove('text-ink-600', 'text-emerald-600', 'text-amber-600', 'border-ink-200', 'border-emerald-200', 'border-amber-200', 'bg-ink-100', 'bg-emerald-50', 'bg-amber-50');
+        el.classList.add(
+            isCampus ? 'text-emerald-600' : 'text-amber-600',
+            isCampus ? 'border-emerald-200' : 'border-amber-200',
+            isCampus ? 'bg-emerald-50' : 'bg-amber-50'
+        );
+    } else {
+        el.classList.remove('text-ink-400', 'text-emerald-600', 'text-amber-600');
+        el.classList.add(isCampus ? 'text-emerald-600' : 'text-amber-600');
+    }
+
+    const dot = el.querySelector('span');
+    if (dot) {
+        dot.className = 'h-2 w-2 rounded-full ' + (isCampus ? 'bg-emerald-500' : 'bg-amber-500');
+    }
+
+    const text = isCampus ? '直连服务器' : '中转连接服务器';
+    for (const child of el.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE && child.textContent.trim()) {
+            child.textContent = text;
+            return;
+        }
+    }
 }
 
 (async () => {
     const isCampus = await probeIntranet();
     const statusEl = document.getElementById('network-status');
-    const cardStatusEl = document.getElementById('network-card-status');
     const formEl = document.getElementById('recheck-form');
     const btnEl = document.getElementById('recheck-btn');
-    const btn2El = document.getElementById('recheck-btn-2');
     const isCampusInput = document.getElementById('recheck-is-campus');
 
     if (isCampusInput) isCampusInput.value = isCampus ? '1' : '0';
@@ -166,21 +158,9 @@ function renderConnectionType(el, isCampus) {
         renderConnectionType(statusEl, isCampus);
     }
 
-    if (cardStatusEl) {
-        cardStatusEl.textContent = '连接方式：' + (isCampus ? '直连服务器' : '中转连接服务器');
-    }
-
     if (btnEl) {
         btnEl.disabled = false;
         btnEl.textContent = '重新检测当前网络';
-    }
-    if (btn2El) {
-        btn2El.disabled = false;
-        btn2El.textContent = '重新检测校园网';
-        btn2El.addEventListener('click', () => {
-            if (isCampusInput) isCampusInput.value = isCampus ? '1' : '0';
-            formEl?.submit();
-        });
     }
     if (formEl) {
         formEl.addEventListener('submit', () => {

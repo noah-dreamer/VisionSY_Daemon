@@ -31,9 +31,8 @@
             <div>
                 <span class="form-label mb-1.5">人机验证</span>
                 <div id="claw-captcha-root"
-                     class="rounded-2xl border border-ink-200 bg-white p-2 shadow-[inset_0_2px_4px_rgb(12_15_26/0.03)]"
+                     class="rounded-xl border border-ink-200 bg-white px-4 py-3"
                      style="--clawcap-bg:#ffffff; --clawcap-ink:#141721; --clawcap-muted:#8a90a3; --clawcap-accent:#3056d3; --clawcap-action:#ff5159;">
-                    <div class="flex items-center justify-center py-10 text-xs text-ink-400">抓娃娃机加载中…</div>
                 </div>
                 <input type="hidden" name="captcha_token" id="captcha_token" value="">
                 @error('captcha')<p class="form-error">{{ $message }}</p>@enderror

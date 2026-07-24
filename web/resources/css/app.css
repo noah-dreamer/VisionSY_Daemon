@@ -899,3 +899,79 @@ html.js [data-reveal].is-revealed {
 .clawcap svg {
     display: inline-block;
 }
+
+/* ---------- 人机验证 checkbox 按钮（reCAPTCHA 风格） ---------- */
+.captcha-checkbox-btn {
+    @apply inline-flex items-center gap-3 rounded-xl border border-ink-200 bg-white px-4 py-3
+           transition hover:border-ink-300 focus:outline-none focus:ring-2 focus:ring-brand-500/25
+           disabled:cursor-wait;
+}
+
+.captcha-checkbox-box {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 border-ink-300
+           bg-white;
+}
+
+.captcha-checkbox-label {
+    @apply text-sm text-ink-600;
+}
+
+/* ---------- 人机验证弹窗 ---------- */
+.captcha-modal-overlay {
+    @apply fixed inset-0 z-[100] flex items-center justify-center;
+}
+
+.captcha-modal-backdrop {
+    @apply fixed inset-0 bg-ink-950/40 backdrop-blur-sm;
+}
+
+.captcha-modal-card {
+    @apply relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-lift outline-none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .captcha-modal-overlay {
+        animation: captcha-fade-in 200ms ease-out;
+    }
+    .captcha-modal-card {
+        animation: captcha-scale-in 200ms ease-out;
+    }
+}
+
+@keyframes captcha-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes captcha-scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .captcha-modal-overlay,
+    .captcha-modal-card {
+        animation: none;
+    }
+}
+
+/* 弹窗内抓娃娃机强制居中 —— 抵消上游库可能的非对称样式干扰 */
+#claw-captcha-modal .captcha-modal-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#claw-captcha-modal .clawcap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* 弹窗内抓娃娃机焦点框贴合圆角 */
+#claw-captcha-modal .clawcap:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(48 86 211 / 0.3);
+    border-radius: 0.75rem;
+}
