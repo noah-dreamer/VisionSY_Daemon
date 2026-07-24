@@ -1,17 +1,17 @@
 {
     "version": "2.0.0",
-    // VisionSY 日常开发任务（Docker Compose + FrankenPHP，跨平台）。
-    // 本文件适用于将 VisionSY_Private 直接作为工作区打开的情形；
-    // 若打开的是包含 VisionSY_Private/VisionSY_Public 的上层工作区，请使用上层 .vscode/tasks.json。
-    // 使用：Ctrl/Cmd+Shift+P → "Tasks: Run Task"。
-    //   首次：VisionSY: 初始化开发环境 (Docker)
-    //   之后：VisionSY: 启动 (Docker) → http://localhost:8000
-    // 所有任务只调用 docker compose 或跨平台 Node 脚本，不依赖 bash/cmd 特有语法。
-    // 原生 PHP + Vite 方式见 README.md（可选）。
+    // VisionSY 任务（Docker Compose + FrankenPHP）
+    // Ctrl/Cmd+Shift+P → Tasks: Run Task
+    //
+    //   首次：初始化开发环境    日常：一键部署    生产：一键发布
+    //
+    // 种子账号（重建开发数据库后可用，密码统一 visionsy-dev）：
+    //   admin@example.com 管理员 · media@example.com 宣传部 · teacher@example.com 官微
+    //   student@student.example.com 普通用户 · pending@student.example.com 待激活
     "tasks": [
         {
-            "label": "VisionSY: 初始化开发环境 (Docker)",
-            "detail": "跨平台脚本：生成 .env(不覆盖)→构建镜像→启动→生成 APP_KEY→migrate（不 seed、不 migrate:fresh）",
+            "label": "VisionSY: 初始化开发环境",
+            "detail": "首次使用：生成 .env → 构建镜像 → 启动 → APP_KEY → 迁移",
             "type": "process",
             "command": "node",
             "args": ["init.mjs"],
@@ -20,28 +20,28 @@
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 构建镜像 (Docker)",
-            "detail": "docker compose build（应用镜像含前端资源）",
+            "label": "VisionSY: 一键部署 (开发)",
+            "detail": "日常使用：构建镜像 → 启动并等健康 → migrate --force（非破坏性）",
             "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "build"],
+            "command": "node",
+            "args": ["deploy.mjs", "dev"],
             "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 启动 (Docker)",
-            "detail": "docker compose up -d（app/worker/scheduler/db/vite）",
+            "label": "VisionSY: 一键发布 (生产)",
+            "detail": "生产发布：构建 → 启动 → migrate --force。发布前请先备份数据库",
             "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "up", "-d"],
+            "command": "node",
+            "args": ["deploy.mjs", "prod"],
             "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 停止 (保留数据卷)",
-            "detail": "docker compose down（停止并移除容器，保留 storage/db 等数据卷；不会执行 down -v）",
+            "label": "VisionSY: 停止",
+            "detail": "docker compose down（停止容器，保留数据卷）",
             "type": "process",
             "command": "docker",
             "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "down"],
@@ -50,50 +50,38 @@
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 日志 - app",
-            "detail": "docker compose logs -f app（FrankenPHP/Web）",
+            "label": "VisionSY: 迁移",
+            "detail": "migrate --force（非破坏性）。更新代码后登录失效时用此恢复，勿用 migrate:fresh",
             "type": "process",
             "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "app"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "isBackground": true,
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy-logs" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 日志 - worker",
-            "detail": "docker compose logs -f worker（队列消费者）",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "worker"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "isBackground": true,
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy-logs" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 日志 - scheduler",
-            "detail": "docker compose logs -f scheduler（调度器）",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "scheduler"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "isBackground": true,
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy-logs" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 测试 (DAM 相关)",
-            "detail": "容器内运行 DAM 身份/Missing/扫描相关测试",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "test", "--filter=MediaIdentityAndMissingTest|GalleryScanTest"],
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "migrate", "--force"],
             "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 测试 (全量)",
+            "label": "VisionSY: Shell",
+            "detail": "进入 app 容器（可执行 artisan 命令、查看文件等）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "app", "sh"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 日志",
+            "detail": "docker compose logs -f app（FrankenPHP / Laravel 实时日志）",
+            "type": "process",
+            "command": "docker",
+            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "logs", "-f", "app"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 测试",
             "detail": "容器内运行全部测试（php artisan test）",
             "type": "process",
             "command": "docker",
@@ -103,58 +91,8 @@
             "problemMatcher": []
         },
         {
-            "label": "VisionSY: 前端构建 (重建应用镜像)",
-            "detail": "前端资源在镜像构建期生成；此任务重建 app 镜像（等价 npm run build 的容器化入口）",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "build", "app"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 迁移 (migrate)",
-            "detail": "docker compose exec app php artisan migrate（非破坏性，不 seed）",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "migrate", "--force"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 查看失败任务",
-            "detail": "docker compose exec app php artisan queue:failed",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "queue:failed"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: 手动 DAM 扫描",
-            "detail": "docker compose exec app php artisan media:scan（扫描所有启用存储源）",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "media:scan"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: app Shell",
-            "detail": "进入 app 容器 shell（docker compose exec app sh）",
-            "type": "process",
-            "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "app", "sh"],
-            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
-            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
-            "problemMatcher": []
-        },
-        {
-            "label": "VisionSY: ⚠ 重建可丢弃开发数据库 (危险)",
-            "detail": "⚠ 仅用于可丢弃的本地开发库：migrate:fresh --seed 会清空并重建数据库。切勿对真实/生产数据执行。",
+            "label": "VisionSY: ⚠ 重建开发数据库",
+            "detail": "⚠ 危险：migrate:fresh --seed 会清空重建。仅限可丢弃开发库，切勿用于生产",
             "type": "process",
             "command": "docker",
             "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "migrate:fresh", "--seed", "--force"],
