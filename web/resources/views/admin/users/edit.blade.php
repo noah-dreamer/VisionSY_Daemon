@@ -53,7 +53,7 @@
             <div class="card p-6">
                 <h3 class="text-sm font-semibold text-ink-900">账号状态</h3>
                 <p class="mt-1.5 prose-muted">
-                    {{ $managedUser->isDisabled() ? '该账号当前已禁用，无法登录与 SSO。' : '禁用后用户将无法登录官网与进入媒体库。' }}
+                    {{ $managedUser->isDisabled() ? '该账号当前已禁用，无法登录。' : '禁用后用户将无法登录官网与进入媒体库。' }}
                 </p>
                 <form method="POST" action="{{ route('admin.users.toggle', $managedUser) }}" class="mt-4">
                     @csrf

@@ -133,7 +133,7 @@
                 <div class="card flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
                     <div>
                         <h2 class="h-card">管理后台</h2>
-                        <p class="mt-1 prose-muted">用户、校园网段、OAuth 客户端与审计日志管理。</p>
+                        <p class="mt-1 prose-muted">用户、校园网段与审计日志管理。</p>
                     </div>
                     <a href="{{ route('admin.dashboard') }}" class="btn-secondary shrink-0">进入后台</a>
                 </div>

@@ -80,7 +80,7 @@ It provides:
 * Account registration and activation
 * Authentication and user management
 * Role-based access model
-* OAuth2 SSO provider functionality
+* Internal integration APIs
 * Internal integration APIs
 * Administrative workflows for campus media access
 
@@ -215,7 +215,6 @@ VisionSY/
 * 用户注册与账号激活
 * 登录鉴权与用户管理
 * 基于角色的访问模型
-* OAuth2 SSO Provider 能力
 * 内部集成接口
 * 校园媒体访问相关的管理流程
 

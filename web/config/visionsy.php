@@ -36,12 +36,6 @@ return [
         'lan' => 'files-internal.example.com',
     ],
 
-    'oauth' => [
-        'code_ttl_seconds' => (int) env('OAUTH_CODE_TTL_SECONDS', 300),
-        'access_token_ttl_seconds' => (int) env('OAUTH_ACCESS_TOKEN_TTL_SECONDS', 3600),
-        'refresh_token_ttl_seconds' => (int) env('OAUTH_REFRESH_TOKEN_TTL_SECONDS', 2592000),
-    ],
-
     /*
     | ---------------- 内置媒体库（DAM） ----------------
     | direct_serve = true ：本机直接流式返回文件（本地开发 / 单机部署）。

@@ -134,22 +134,6 @@ class AdminPanelTest extends TestCase
             ->assertSessionHasErrors('cidr');
     }
 
-    public function test_oauth_client_creation_is_audited(): void
-    {
-        $admin = $this->admin();
-
-        $response = $this->actingAs($admin)->post('/admin/oauth-clients', [
-            'name' => 'Test OAuth Client',
-            'client_id' => 'test-client',
-            'redirect_uris' => "https://example.com/callback",
-        ]);
-
-        $response->assertRedirect()->assertSessionHas('status');
-
-        $this->assertDatabaseHas('oauth_clients', ['client_id' => 'test-client']);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'admin.oauth_client_created']);
-    }
-
     public function test_audit_log_page_lists_entries(): void
     {
         $admin = $this->admin();

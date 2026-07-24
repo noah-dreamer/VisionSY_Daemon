@@ -47,10 +47,6 @@
                     管理校园出口 IP
                     <svg class="h-4 w-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </a>
-                <a href="{{ route('admin.oauth-clients.index') }}" class="flex items-center justify-between rounded-xl border border-ink-100 px-4 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-200 hover:bg-ink-50">
-                    OAuth 客户端
-                    <svg class="h-4 w-4 text-ink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </a>
             </div>
         </div>
     </div>

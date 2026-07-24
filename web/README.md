@@ -1,6 +1,6 @@
 # VisionSY 官网（web/）
 
-自研官网，Laravel 12。承担账号体系、注册与校园 IP 激活、后台管理、审计日志、大文件直连用的内部 transfer-token 接口，并**内置媒体资产管理（DAM）模块**（`/media`：统一账户库、统一 UI、分级下载、自动水印）。OAuth2 Provider 能力保留（供历史或后续第三方服务接入）。
+自研官网，Laravel 12。承担账号体系、注册与校园 IP 激活、后台管理、审计日志、大文件直连用的内部 transfer-token 接口，并**内置媒体资产管理（DAM）模块**（`/media`：统一账户库、统一 UI、分级下载、自动水印）。
 
 **集成版新增**：
 - `/media` 媒体库：上传、检索、带水印缩略图与预览、分级下载、归档、SHA-256 去重；上传时读取照片/视频**全部内嵌元数据**（exiftool 优先，回退 PHP exif + getID3，详情页可展开全部标签）；配置 ffmpeg 后视频自动抽帧生成水印封面；
@@ -63,7 +63,6 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app p
 
 ## 四、与其他组件的接口
 
-- **作为 OAuth2 Provider**：`/oauth/authorize`、`/oauth/token`、`/oauth/userinfo`；客户端配置见 OAuth 客户端后台页。
 - **内部 transfer-token 接口**：`/api/transfer-tokens*`，用 `X-Internal-Secret` 鉴权，给大文件 307 直连发 / 验 / 销 token。
 
 ---
@@ -71,7 +70,6 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app p
 ## 五、上线前务必
 
 - `.env` 的 `INTERNAL_API_SECRET` 换成密钥管理服务真实值；
-- `TRUSTED_PROXY_IPS` 确认为 反向代理网关 地址 `10.0.0.30`；
-- 后台「OAuth 客户端」创建客户端，拿到正式 secret（只展示一次，立刻存密钥管理服务）。
+- `TRUSTED_PROXY_IPS` 确认为 反向代理网关 地址 `10.0.0.30`。
 
 > 注意：本仓库代码在无网络环境编写，`composer install` / `npm run build` / `php artisan test` 需在你本机执行；测试只依赖 sqlite。

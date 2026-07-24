@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\CampusIpRangeController;
 use App\Http\Controllers\Admin\GalleryController as AdminGalleryController;
-use App\Http\Controllers\Admin\OAuthClientController;
 use App\Http\Controllers\Admin\StorageSourceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserGroupController;
@@ -136,10 +135,6 @@ Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->gr
     Route::put('/campus-ips/{range}', [CampusIpRangeController::class, 'update'])->name('campus-ips.update');
     Route::post('/campus-ips/{range}/toggle', [CampusIpRangeController::class, 'toggle'])->name('campus-ips.toggle');
     Route::delete('/campus-ips/{range}', [CampusIpRangeController::class, 'destroy'])->name('campus-ips.destroy');
-
-    Route::get('/oauth-clients', [OAuthClientController::class, 'index'])->name('oauth-clients.index');
-    Route::post('/oauth-clients', [OAuthClientController::class, 'store'])->name('oauth-clients.store');
-    Route::delete('/oauth-clients/{client}', [OAuthClientController::class, 'destroy'])->name('oauth-clients.destroy');
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 });

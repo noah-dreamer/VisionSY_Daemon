@@ -1,7 +1,7 @@
 {
     "name": "visionsy/site",
     "type": "project",
-    "description": "VisionSY campus media asset management portal (official site, SSO provider, transfer-token service).",
+    "description": "VisionSY campus media asset management portal (official site, transfer-token service).",
     "license": "proprietary",
     "require": {
         "php": "^8.2",
