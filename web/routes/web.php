@@ -13,6 +13,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Media\GalleryController as MediaGalleryController;
 use App\Http\Controllers\Media\MediaFileController;
 use App\Http\Controllers\Media\MediaLibraryController;
@@ -54,6 +55,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'show'])->name('dashboard');
     Route::post('/dashboard/recheck-activation', [DashboardController::class, 'recheckActivation'])
         ->name('dashboard.recheck');
+
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/', [SettingsController::class, 'index'])->name('index');
+        Route::get('/password', [SettingsController::class, 'password'])->name('password');
+        Route::get('/profile/check-name', [SettingsController::class, 'checkName'])->name('profile.check-name');
+        Route::patch('/profile', [SettingsController::class, 'updateProfile'])->name('profile.update');
+        Route::post('/avatar', [SettingsController::class, 'updateAvatar'])->name('avatar.update');
+        Route::put('/password', [SettingsController::class, 'updatePassword'])->name('password.update');
+    });
 });
 
 

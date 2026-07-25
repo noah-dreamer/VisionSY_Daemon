@@ -27,7 +27,9 @@ class RegisterController extends Controller
             'display_name' => ['required', 'string', 'max:50'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
-        ], [], [
+        ], [
+            'email.unique' => '该邮箱已被注册。',
+        ], [
             'display_name' => '显示名',
             'email' => '邮箱',
             'password' => '密码',

@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.settings')
 @section('title', '图库管理 · 管理后台 · VisionSY')
 @section('page-title', '图库管理')
 

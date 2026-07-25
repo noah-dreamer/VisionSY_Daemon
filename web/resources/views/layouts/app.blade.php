@@ -66,14 +66,10 @@
 
             {{-- 桌面操作区：独立液态玻璃胶囊按钮 --}}
             <nav class="relative z-10 hidden items-center gap-2 sm:flex" aria-label="主导航">
-                <a href="{{ route('media.index') }}" class="capsule-bar-btn-dark">媒体库</a>
                 @auth
                     <a href="{{ config('visionsy.urls.auth') }}/dashboard"
-                       class="capsule-bar-btn-dark">控制台</a>
-                    @if (auth()->user()->isSystemAdmin())
-                        <a href="{{ config('visionsy.urls.auth') }}/admin"
-                           class="capsule-bar-btn-dark">管理后台</a>
-                    @endif
+                       class="capsule-bar-btn-dark">开始使用</a>
+                    <a href="#" class="capsule-bar-btn-dark">用户指南</a>
                     <form method="POST" action="{{ route('logout') }}" class="ml-1">
                         @csrf
                         <button type="submit" class="capsule-bar-btn-dark-filled">退出</button>
@@ -105,11 +101,8 @@
              class="liquid-glass-dark mx-auto mt-2 max-w-shell rounded-2xl sm:hidden">
             <nav class="relative z-10 flex flex-col gap-1 p-3" aria-label="移动端导航">
                 @auth
-                    <a href="{{ config('visionsy.urls.auth') }}/dashboard" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">控制台</a>
-                    @if (auth()->user()->isSystemAdmin())
-                        <a href="{{ config('visionsy.urls.auth') }}/admin" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">管理后台</a>
-                    @endif
-                    <a href="{{ route('media.index') }}" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">媒体库</a>
+                    <a href="{{ config('visionsy.urls.auth') }}/dashboard" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">开始使用</a>
+                    <a href="#" class="rounded-xl px-3 py-2.5 text-sm font-medium text-white hover:bg-white/10">用户指南</a>
                     <form method="POST" action="{{ route('logout') }}" class="mt-1">
                         @csrf
                         <button type="submit" class="capsule-bar-btn-dark w-full">退出登录</button>

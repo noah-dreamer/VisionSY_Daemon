@@ -67,7 +67,9 @@ class UserController extends Controller
             'role' => ['required', Rule::in(array_map(fn ($r) => $r->value, UserRole::adminAssignable()))],
             'password' => ['required', Password::min(8)],
             'user_group_id' => ['nullable', 'integer', Rule::exists('user_groups', 'id')],
-        ], [], [
+        ], [
+            'email.unique' => '该邮箱已被使用。',
+        ], [
             'display_name' => '显示名', 'real_name' => '真实姓名',
             'email' => '邮箱', 'role' => '角色', 'password' => '初始密码',
             'user_group_id' => '用户组',

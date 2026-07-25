@@ -11,10 +11,24 @@ class DashboardController extends Controller
 {
     public function show(Request $request): View
     {
+        $user = $request->user();
+        $downloadRemaining = null;
+        $downloadLimit = null;
+        $downloadUnlimited = true;
+
+        if (! $user->isSystemAdmin() && $user->userGroup) {
+            $downloadRemaining = $user->userGroup->remainingDownloadsToday($user);
+            $downloadLimit = $user->userGroup->download_limit_per_day;
+            $downloadUnlimited = $downloadRemaining === null;
+        }
+
         return view('dashboard', [
-            'user' => $request->user(),
+            'user' => $user,
             'intranetProbeUrl' => config('visionsy.intranet_probe_url'),
             'mediaLibraryUrl' => route('media.index'),
+            'downloadRemaining' => $downloadRemaining,
+            'downloadLimit' => $downloadLimit,
+            'downloadUnlimited' => $downloadUnlimited,
         ]);
     }
 

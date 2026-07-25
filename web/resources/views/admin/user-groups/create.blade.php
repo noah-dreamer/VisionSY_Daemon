@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.settings')
 
 @section('title', '新建用户组 · 管理后台')
 @section('page-title', '新建用户组')

@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.settings')
 @section('title', '编辑存储源 · 管理后台 · VisionSY')
 @section('page-title', '编辑存储源: '.$source->name)
 
