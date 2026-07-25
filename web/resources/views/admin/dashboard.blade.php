@@ -3,7 +3,7 @@
 @section('title', '概览 · 管理后台')
 @section('page-title', '概览')
 
-@section('content')
+@section('settings-content')
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <x-stat-card label="用户总数" :value="$stats['total_users']" />
         <x-stat-card label="已激活" :value="$stats['active_users']" tone="text-emerald-600" />

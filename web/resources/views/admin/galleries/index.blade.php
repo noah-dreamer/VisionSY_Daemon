@@ -2,7 +2,7 @@
 @section('title', '图库管理 · 管理后台 · VisionSY')
 @section('page-title', '图库管理')
 
-@section('content')
+@section('settings-content')
 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <form method="GET" action="{{ route('admin.galleries.index') }}" class="flex items-center gap-2">
         <select name="source_id" class="form-input w-auto py-2 text-sm" aria-label="按存储源筛选" onchange="this.form.submit()">

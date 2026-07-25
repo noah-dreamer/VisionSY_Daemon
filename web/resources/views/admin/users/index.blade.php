@@ -3,7 +3,7 @@
 @section('title', '用户管理 · 管理后台')
 @section('page-title', '用户管理')
 
-@section('content')
+@section('settings-content')
     <div class="card p-4">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <form method="GET" action="{{ route('admin.users.index') }}" class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">

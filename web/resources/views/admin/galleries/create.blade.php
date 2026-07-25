@@ -2,7 +2,7 @@
 @section('title', '创建图库 · 管理后台 · VisionSY')
 @section('page-title', '创建图库')
 
-@section('content')
+@section('settings-content')
 <form method="POST" action="{{ route('admin.galleries.store') }}" class="card max-w-2xl space-y-6 p-6">
     @csrf
 

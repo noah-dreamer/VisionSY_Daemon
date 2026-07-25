@@ -3,7 +3,7 @@
 @section('title', '用户组 · 管理后台')
 @section('page-title', '用户组')
 
-@section('content')
+@section('settings-content')
     <div class="flex items-center justify-between">
         <p class="prose-muted">
             媒体库权限组。组内用户的媒体权限以组的权限位为准；未入组用户按其角色的默认矩阵。

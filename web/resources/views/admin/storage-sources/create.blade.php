@@ -2,7 +2,7 @@
 @section('title', '新增存储源 · 管理后台 · VisionSY')
 @section('page-title', '新增存储源')
 
-@section('content')
+@section('settings-content')
 <form method="POST" action="{{ route('admin.storage-sources.store') }}" class="card max-w-2xl space-y-6 p-6">
     @csrf
 

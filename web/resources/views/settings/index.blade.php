@@ -53,8 +53,10 @@
                 <div class="relative mt-1">
                     <input type="text" name="display_name" id="display_name"
                            x-model="name"
+                           x-ref="nameInput"
                            @input.debounce.500ms="checkName()"
                            maxlength="50" required
+                           autocomplete="off"
                            class="form-input w-full pr-10"
                            :class="statusClass()">
                     <div class="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -81,7 +83,10 @@
                     </div>
                 </div>
             </div>
-            <button type="submit" class="btn-primary text-sm">保存</button>
+            <div class="flex items-center gap-3">
+                <button type="submit" class="btn-primary text-sm">保存</button>
+                <button type="button" class="btn-ghost text-sm text-ink-500" x-show="name !== original" x-cloak @click="name = original; status = 'idle'; suggestions = []">取消</button>
+            </div>
         </form>
     </div>
 </div>
@@ -117,6 +122,7 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.name = original;
+            this.$nextTick(() => { this.$refs.nameInput.value = original });
         },
 
         async checkName() {

@@ -2,7 +2,7 @@
 @section('title', '存储源 · 管理后台 · VisionSY')
 @section('page-title', '存储源管理')
 
-@section('content')
+@section('settings-content')
 <div class="flex items-center justify-between">
     <p class="text-sm text-ink-500">管理媒体文件的物理存储位置。当前仅支持宿主机已挂载的本地 / SMB / NFS 路径。</p>
     <a href="{{ route('admin.storage-sources.create') }}" class="btn-primary shrink-0">

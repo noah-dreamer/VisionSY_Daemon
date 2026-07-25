@@ -3,7 +3,7 @@
 @section('title', '编辑账号 · 管理后台')
 @section('page-title', '编辑账号')
 
-@section('content')
+@section('settings-content')
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="card p-7 lg:col-span-2">
             <div class="flex items-start justify-between">

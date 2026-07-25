@@ -3,7 +3,7 @@
 @section('title', '新建用户组 · 管理后台')
 @section('page-title', '新建用户组')
 
-@section('content')
+@section('settings-content')
     <div class="card max-w-3xl p-7">
         <form method="POST" action="{{ route('admin.user-groups.store') }}">
             @include('admin.user-groups._form', ['group' => null])

@@ -3,7 +3,7 @@
 @section('title', '审计日志 · 管理后台')
 @section('page-title', '审计日志')
 
-@section('content')
+@section('settings-content')
     <div class="card p-4">
         <form method="GET" action="{{ route('admin.audit-logs.index') }}" class="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input type="search" name="action" value="{{ $filters['action'] ?? '' }}" class="form-input sm:max-w-xs" placeholder="按动作筛选，例如 admin.user">

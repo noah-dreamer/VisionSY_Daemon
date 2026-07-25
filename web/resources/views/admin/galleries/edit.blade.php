@@ -2,7 +2,7 @@
 @section('title', '编辑图库 · 管理后台 · VisionSY')
 @section('page-title', '编辑图库: '.$gallery->name)
 
-@section('content')
+@section('settings-content')
 <form method="POST" action="{{ route('admin.galleries.update', $gallery) }}" class="card max-w-2xl space-y-6 p-6">
     @csrf @method('PUT')
 
