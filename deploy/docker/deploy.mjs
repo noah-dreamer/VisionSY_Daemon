@@ -83,6 +83,9 @@ run(['up', '-d', '--wait'], { retries: 4, delayMs: 4000, label: ' [up]' });
 console.log('\n[deploy] 3/3 执行迁移（migrate --force，非破坏性）...');
 run(['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force'], { label: ' [migrate]' });
 
+console.log('\n[deploy] 建立 storage 软链接（storage:link，若已存在会跳过）...');
+run(['exec', '-T', 'app', 'php', 'artisan', 'storage:link'], { label: ' [storage:link]' });
+
 if (mode === 'dev') {
     console.log('\n[deploy] 完成。');
     console.log('  Web      : http://localhost:8000');

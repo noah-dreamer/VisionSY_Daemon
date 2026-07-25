@@ -112,6 +112,9 @@ if (needKey) {
 console.log('\n[init] 执行数据库迁移（php artisan migrate）...');
 compose(['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force']);
 
+console.log('\n[init] 建立 storage 软链接（storage:link，若已存在会跳过）...');
+compose(['exec', '-T', 'app', 'php', 'artisan', 'storage:link']);
+
 console.log('\n[init] 完成。');
 console.log('  Web      : http://localhost:8000');
 console.log('  Vite HMR : http://localhost:5173');

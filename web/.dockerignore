@@ -24,6 +24,7 @@ public/hot
 # 运行时数据（由 Dockerfile 重建目录结构；数据经卷挂载）
 storage/*
 bootstrap/cache/*
+public/storage
 
 # 本地数据库与测试缓存
 database/*.sqlite
