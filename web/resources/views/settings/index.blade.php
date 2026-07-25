@@ -43,7 +43,7 @@
         </form>
     </div>
 
-    <div class="card p-6 sm:p-8" x-data="nameChecker(@json($user->display_name))">
+    <div class="card p-6 sm:p-8" x-data="nameChecker(@js($user->display_name))">
         <h2 class="h-card">账户名称</h2>
         <form method="POST" action="{{ route('settings.profile.update') }}" class="mt-4 space-y-4">
             @csrf
@@ -52,6 +52,7 @@
                 <label for="display_name" class="form-label">显示名</label>
                 <div class="relative mt-1">
                     <input type="text" name="display_name" id="display_name"
+                           value="{{ old('display_name', $user->display_name) }}"
                            x-model="name"
                            x-ref="nameInput"
                            @input.debounce.500ms="checkName()"
