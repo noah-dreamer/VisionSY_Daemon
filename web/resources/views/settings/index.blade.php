@@ -116,6 +116,7 @@ document.addEventListener('alpine:init', () => {
 
     Alpine.data('nameChecker', (original) => ({
         name: original,
+        original: original,
         status: 'idle',
         checking: false,
         suggestions: [],
