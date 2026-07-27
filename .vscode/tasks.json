@@ -8,6 +8,7 @@
     // 种子账号（重建开发数据库后可用，密码统一 visionsy-dev）：
     //   admin@example.com 管理员 · media@example.com 宣传部 · teacher@example.com 官微
     //   student@student.example.com 普通用户 · pending@student.example.com 待激活
+
     "tasks": [
         {
             "label": "VisionSY: 初始化开发环境",
