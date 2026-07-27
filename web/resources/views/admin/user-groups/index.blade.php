@@ -4,21 +4,22 @@
 @section('page-title', '用户组')
 
 @section('settings-content')
-    <div class="flex items-center justify-between">
+<div class="flex flex-1 flex-col min-h-0">
+    <div class="flex shrink-0 items-center justify-between">
         <p class="prose-muted">
             媒体库权限组。组内用户的媒体权限以组的权限位为准；未入组用户按其角色的默认矩阵。
         </p>
         <a href="{{ route('admin.user-groups.create') }}" class="btn-primary btn-sm shrink-0">新建用户组</a>
     </div>
 
-    <div class="card mt-5 overflow-x-auto">
+    <div class="card mt-5 flex flex-1 min-h-0 overflow-auto">
         <table class="min-w-full divide-y divide-ink-100">
-            <thead>
+            <thead class="sticky top-0 z-10 bg-ink-50">
                 <tr>
                     <th class="table-head">组名</th>
                     <th class="table-head">权限</th>
                     <th class="table-head">高级限制</th>
-                    <th class="table-head">成员</th>
+                    <th class="table-head whitespace-nowrap">成员数</th>
                     <th class="table-head text-right">操作</th>
                 </tr>
             </thead>
@@ -36,10 +37,20 @@
                             @endif
                         </td>
                         <td class="table-cell">
+                            @php
+                                $permissionTones = [
+                                    'can_browse' => 'gray',
+                                    'can_preview' => 'gray',
+                                    'can_download_watermarked' => 'blue',
+                                    'can_download_original' => 'amber',
+                                    'can_upload' => 'blue',
+                                    'can_manage_media' => 'red',
+                                ];
+                            @endphp
                             <div class="flex flex-wrap gap-1.5">
                                 @foreach (\App\Models\UserGroup::permissionFlags() as $flag => [$label, $hint])
                                     @if ($group->{$flag})
-                                        <x-badge tone="gray">{{ $label }}</x-badge>
+                                        <x-badge tone="{{ $permissionTones[$flag] ?? 'gray' }}">{{ $label }}</x-badge>
                                     @endif
                                 @endforeach
                             </div>
@@ -52,12 +63,14 @@
                         </td>
                         <td class="table-cell text-sm">{{ $group->users_count }}</td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('admin.user-groups.edit', $group) }}" class="btn-ghost btn-sm">编辑</a>
-                            <form method="POST" action="{{ route('admin.user-groups.destroy', $group) }}" class="inline"
-                                  onsubmit="return confirm('删除用户组「{{ $group->name }}」？组内 {{ $group->users_count }} 名成员将回退为角色默认权限。')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn-ghost btn-sm text-red-600 hover:bg-red-50">删除</button>
-                            </form>
+                            <div class="inline-flex items-center gap-1.5">
+                                <a href="{{ route('admin.user-groups.edit', $group) }}" class="btn-secondary btn-sm">编辑</a>
+                                <form method="POST" action="{{ route('admin.user-groups.destroy', $group) }}" class="inline"
+                                      onsubmit="return confirm('删除用户组「{{ $group->name }}」？组内 {{ $group->users_count }} 名成员将回退为角色默认权限。')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn-danger btn-sm">删除</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty
@@ -66,4 +79,5 @@
             </tbody>
         </table>
     </div>
+</div>
 @endsection

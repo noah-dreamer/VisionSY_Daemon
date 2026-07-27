@@ -53,6 +53,44 @@ class AdminPanelTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_filter_users_by_multiple_roles_and_statuses(): void
+    {
+        $admin = $this->admin();
+
+        $activeMember = User::factory()
+            ->role(UserRole::PropagandaMember, '筛选样本成员')
+            ->create([
+                'display_name' => '宣传成员筛选样本',
+            ]);
+
+        $disabledTeacher = User::factory()
+            ->role(UserRole::WechatEditorTeacher, '筛选样本老师')
+            ->disabled()
+            ->create([
+                'display_name' => '禁用老师筛选样本',
+            ]);
+
+        $normalUser = User::factory()->create([
+            'display_name' => '普通用户排除样本',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.index', [
+                'roles' => [
+                    UserRole::PropagandaMember->value,
+                    UserRole::WechatEditorTeacher->value,
+                ],
+                'statuses' => [
+                    UserStatus::Active->value,
+                    UserStatus::Disabled->value,
+                ],
+            ]))
+            ->assertOk()
+            ->assertSeeText($activeMember->display_name)
+            ->assertSeeText($disabledTeacher->display_name)
+            ->assertDontSeeText($normalUser->display_name);
+    }
+
     public function test_admin_role_change_is_audited(): void
     {
         $admin = $this->admin();

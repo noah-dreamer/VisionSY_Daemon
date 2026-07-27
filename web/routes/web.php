@@ -108,6 +108,7 @@ Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->gr
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle');
     Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
     Route::get('/user-groups', [UserGroupController::class, 'index'])->name('user-groups.index');
     Route::get('/user-groups/create', [UserGroupController::class, 'create'])->name('user-groups.create');

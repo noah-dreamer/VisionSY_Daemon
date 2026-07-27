@@ -3,7 +3,8 @@
 @section('page-title', '图库管理')
 
 @section('settings-content')
-<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+<div class="flex flex-1 flex-col min-h-0">
+<div class="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <form method="GET" action="{{ route('admin.galleries.index') }}" class="flex items-center gap-2">
         <select name="source_id" class="form-input w-auto py-2 text-sm" aria-label="按存储源筛选" onchange="this.form.submit()">
             <option value="">全部存储源</option>
@@ -19,16 +20,16 @@
 </div>
 
 @if($galleries->isEmpty())
-    <div class="card flex flex-col items-center gap-3 px-6 py-16 text-center">
+    <div class="card mt-6 flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink-100 text-ink-400">
             <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 0113.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 0113.182 0L2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21Z"/></svg>
         </div>
         <p class="text-sm text-ink-500">还没有图库。请先创建存储源并执行扫描，或手动创建图库。</p>
     </div>
 @else
-    <div class="overflow-x-auto rounded-2xl border border-ink-100 bg-white">
+    <div class="mt-6 flex flex-1 flex-col min-h-0 overflow-auto rounded-2xl border border-ink-100 bg-white">
         <table class="w-full text-left text-sm">
-            <thead class="border-b border-ink-100 bg-ink-50/70">
+            <thead class="sticky top-0 z-10 border-b border-ink-100 bg-ink-50">
                 <tr>
                     <th class="px-5 py-3.5 font-semibold text-ink-600">名称</th>
                     <th class="px-5 py-3.5 font-semibold text-ink-600 hidden sm:table-cell">存储源</th>
@@ -76,6 +77,7 @@
             </tbody>
         </table>
     </div>
-    <div>{{ $galleries->links() }}</div>
+    <div class="shrink-0 mt-4">{{ $galleries->links() }}</div>
 @endif
+</div>
 @endsection

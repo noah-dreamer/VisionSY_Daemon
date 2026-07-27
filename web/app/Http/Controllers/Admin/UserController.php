@@ -23,9 +23,13 @@ class UserController extends Controller
 
     public function index(Request $request): View
     {
-        $query = User::query()->with('userGroup')->latest('id');
+        $query = User::query()
+            ->with('userGroup')
+            ->latest('id');
 
-        if ($search = trim((string) $request->query('q', ''))) {
+        $search = trim((string) $request->query('q', ''));
+
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
                     ->orWhere('display_name', 'like', "%{$search}%")
@@ -33,19 +37,63 @@ class UserController extends Controller
             });
         }
 
-        if ($role = $request->query('role')) {
-            $query->where('role', $role);
+        $validRoles = array_map(
+            static fn (UserRole $role): string => $role->value,
+            UserRole::cases(),
+        );
+
+        $validStatuses = array_map(
+            static fn (UserStatus $status): string => $status->value,
+            UserStatus::cases(),
+        );
+
+        $requestedRoles = (array) $request->query(
+            'roles',
+            $request->filled('role')
+                ? [$request->query('role')]
+                : [],
+        );
+
+        $requestedStatuses = (array) $request->query(
+            'statuses',
+            $request->filled('status')
+                ? [$request->query('status')]
+                : [],
+        );
+
+        $selectedRoles = array_values(array_unique(array_intersect(
+            array_map(
+                static fn ($value): string => (string) $value,
+                array_filter($requestedRoles, 'is_scalar'),
+            ),
+            $validRoles,
+        )));
+
+        $selectedStatuses = array_values(array_unique(array_intersect(
+            array_map(
+                static fn ($value): string => (string) $value,
+                array_filter($requestedStatuses, 'is_scalar'),
+            ),
+            $validStatuses,
+        )));
+
+        if ($selectedRoles !== []) {
+            $query->whereIn('role', $selectedRoles);
         }
 
-        if ($status = $request->query('status')) {
-            $query->where('status', $status);
+        if ($selectedStatuses !== []) {
+            $query->whereIn('status', $selectedStatuses);
         }
 
         return view('admin.users.index', [
             'users' => $query->paginate(20)->withQueryString(),
             'roles' => UserRole::cases(),
             'statuses' => UserStatus::cases(),
-            'filters' => $request->only(['q', 'role', 'status']),
+            'filters' => [
+                'q' => $search,
+                'roles' => $selectedRoles,
+                'statuses' => $selectedStatuses,
+            ],
         ]);
     }
 
@@ -147,6 +195,28 @@ class UserController extends Controller
         );
 
         return back()->with('status', $newStatus === UserStatus::Disabled ? '账号已禁用。' : '账号已启用。');
+    }
+
+    /** 删除账号。不能删除自己，也不能删除最后一名系统管理员。 */
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($user->id === $request->user()->id) {
+            return back()->withErrors(['status' => '不能删除自己的账号。']);
+        }
+
+        if ($user->role === UserRole::SystemAdmin
+            && User::where('role', UserRole::SystemAdmin)->where('id', '!=', $user->id)->doesntExist()) {
+            return back()->withErrors(['status' => '至少需要保留一名系统管理员，无法删除该账号。']);
+        }
+
+        $email = $user->email;
+        $user->delete();
+
+        $this->audit->log('admin.user_deleted', $request->user(), 'user', (string) $user->id, [
+            'email' => $email,
+        ]);
+
+        return redirect()->route('admin.users.index')->with('status', "账号 {$email} 已删除。");
     }
 
     /** 重置密码：生成随机密码一次性展示给管理员。 */

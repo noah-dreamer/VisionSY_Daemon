@@ -1,4 +1,8 @@
 import Alpine from 'alpinejs';
+import {
+    initAutoSubmitFilters,
+    initEnhancedSelects,
+} from './enhanced-select';
 
 /* ==========================================================================
    VisionSY 前端交互
@@ -288,8 +292,15 @@ function initPointerFX() {
 function initNavToneAwareness() {
     const header = document.querySelector('header');
     if (!header) return;
+
     let ticking = false;
-    let currentTone = null;
+    let currentTone = header.classList.contains('nav-tone-light')
+        ? 'light'
+        : (
+            header.classList.contains('nav-tone-dark')
+                ? 'dark'
+                : null
+        );
     const update = () => {
         const rect = header.getBoundingClientRect();
         // 采样导航栏底部正下方一点（避开 header 自身的命中区）
@@ -318,6 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initScrollProgress();
     initPointerFX();
     initNavToneAwareness();
+    initEnhancedSelects();
+    initAutoSubmitFilters();
 });
 
 

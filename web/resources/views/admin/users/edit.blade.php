@@ -43,8 +43,11 @@
                     @error('user_group_id') <p class="form-error">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="sm:col-span-2">
+                <div class="flex flex-wrap items-center gap-3 sm:col-span-2">
                     <button type="submit" class="btn-primary">保存修改</button>
+                    <a href="{{ route('admin.users.index') }}" class="btn-secondary">
+                        返回
+                    </a>
                 </div>
             </form>
         </div>

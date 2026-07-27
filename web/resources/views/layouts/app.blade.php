@@ -47,7 +47,7 @@
     <header
         x-data="{ menu: false }"
         @keydown.escape.window="menu = false"
-        class="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
+        class="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4 {{ $overHero ? 'nav-tone-dark' : 'nav-tone-light' }}">
 
         {{-- nav-bar 标识顶部导航条（区别于下方移动抽屉）。
              nav-tone-{dark|light} 由 app.js initNavToneAwareness 按背后 section 深浅写入 header，
@@ -119,19 +119,192 @@
     {{-- 内页（非 hero 页）默认 light tone：悬浮导航呈现与首页白底区一致的熏色玻璃质感；
          带 hero 的页面由各 section 自行声明 data-nav-tone。 --}}
     <main id="main" class="flex flex-1 flex-col {{ $overHero ? '' : 'pt-16' }}" data-nav-tone="{{ $overHero ? 'dark' : 'light' }}">
-        @if (session('status'))
-            <div class="shell pt-6">
-                <div class="alert-success" role="status">
-                    <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                    <span>{{ session('status') }}</span>
-                </div>
-            </div>
-        @endif
-
         @yield('content')
     </main>
 
-    <x-site-footer />
+    @hasSection('no-footer')
+    @else
+        <x-site-footer />
+    @endif
+
+    @php
+        $toastMessage = session('status')
+            ?: ($errors->has('status') ? $errors->first('status') : null);
+
+        $toastTone = session('status')
+            ? 'success'
+            : ($errors->has('status') ? 'error' : null);
+    @endphp
+
+    @if ($toastMessage)
+        <div
+            x-data="{
+                show: false,
+                total: 4000,
+                remaining: 4000,
+                progress: 100,
+                lastTick: null,
+                interval: null,
+
+                init() {
+                    requestAnimationFrame(() => {
+                        this.show = true;
+                        this.resume();
+                    });
+                },
+
+                consumeElapsed() {
+                    const now = Date.now();
+
+                    if (this.lastTick !== null) {
+                        this.remaining = Math.max(
+                            0,
+                            this.remaining - (now - this.lastTick)
+                        );
+                    }
+
+                    this.lastTick = now;
+                    this.progress = (this.remaining / this.total) * 100;
+                },
+
+                pause() {
+                    if (! this.interval) return;
+
+                    this.consumeElapsed();
+                    clearInterval(this.interval);
+                    this.interval = null;
+
+                    if (this.remaining <= 0) {
+                        this.show = false;
+                    }
+                },
+
+                resume() {
+                    if (! this.show || this.interval || this.remaining <= 0) {
+                        return;
+                    }
+
+                    this.lastTick = Date.now();
+
+                    this.interval = setInterval(() => {
+                        this.consumeElapsed();
+
+                        if (this.remaining <= 0) {
+                            this.close();
+                        }
+                    }, 30);
+                },
+
+                close() {
+                    if (this.interval) {
+                        clearInterval(this.interval);
+                        this.interval = null;
+                    }
+
+                    this.show = false;
+                }
+            }"
+            x-show="show"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 -translate-y-3 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+            x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
+            @mouseenter="pause"
+            @mouseleave="resume"
+            @keydown.escape.window="close"
+            class="fixed right-4 top-20 z-[75] w-[calc(100%-2rem)] max-w-sm overflow-hidden rounded-2xl border bg-white shadow-card sm:right-6
+                   {{ $toastTone === 'error'
+                       ? 'border-red-200'
+                       : 'border-emerald-200' }}"
+            role="{{ $toastTone === 'error' ? 'alert' : 'status' }}"
+            x-cloak
+        >
+            <div class="flex items-start gap-3 px-4 py-3.5">
+                <div
+                    class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+                           {{ $toastTone === 'error'
+                               ? 'bg-red-100 text-red-600'
+                               : 'bg-emerald-100 text-emerald-600' }}"
+                >
+                    @if ($toastTone === 'error')
+                        <svg
+                            class="h-3.5 w-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2.4"
+                            aria-hidden="true"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+                            />
+                        </svg>
+                    @else
+                        <svg
+                            class="h-3.5 w-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            aria-hidden="true"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="m4.5 12.75 6 6 9-13.5"
+                            />
+                        </svg>
+                    @endif
+                </div>
+
+                <p class="flex-1 pt-px text-sm text-ink-800">
+                    {{ $toastMessage }}
+                </p>
+
+                <button
+                    type="button"
+                    @click="close"
+                    class="-m-1 shrink-0 rounded-lg p-1 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700"
+                    aria-label="关闭提示"
+                >
+                    <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M6 18 18 6M6 6l12 12"
+                        />
+                    </svg>
+                </button>
+            </div>
+
+            <div
+                class="h-1 w-full
+                       {{ $toastTone === 'error'
+                           ? 'bg-red-100'
+                           : 'bg-emerald-100' }}"
+            >
+                <div
+                    class="h-full transition-[width] duration-100 ease-linear
+                           {{ $toastTone === 'error'
+                               ? 'bg-red-500'
+                               : 'bg-emerald-500' }}"
+                    :style="`width: ${progress}%`"
+                ></div>
+            </div>
+        </div>
+    @endif
+
     @stack('scripts')
 </body>
 </html>

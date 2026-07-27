@@ -94,6 +94,10 @@ class UserGroupController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'download_limit_per_day' => ['required', 'integer', 'min:0', 'max:100000'],
             'ip_restriction' => ['nullable', 'string', 'max:255', 'regex:/^[0-9a-fA-F:.\/,\s]*$/'],
+        ], [
+            'name.required' => '请填写组名。',
+            'name.unique' => '用户组名已存在，请换一个名称。',
+            'name.max' => '组名不能超过 60 个字符。',
         ]);
 
         foreach (array_keys(UserGroup::permissionFlags()) as $flag) {
