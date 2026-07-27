@@ -10,7 +10,7 @@ npm install --no-audit --no-fund
 # Start Vite dev server in background.
 # Must bind to 0.0.0.0 so Docker port mapping exposes it to the host.
 # laravel-vite-plugin writes 0.0.0.0 into public/hot which browsers cannot
-# connect to — we fix that below.
+# connect to 鈥?we fix that below.
 npx vite --host 0.0.0.0 --port 5173 &
 VITE_PID=$!
 
@@ -26,7 +26,7 @@ done
 # and Docker publishes 5173 on the host loopback.
 if [ -f public/hot ]; then
     echo 'http://localhost:5173' > public/hot
-    echo "[visionSY] Fixed public/hot → http://localhost:5173"
+    echo "[visionSY] Fixed public/hot 鈫?http://localhost:5173"
 fi
 
 # Wait for Vite to exit (keeps container alive)
