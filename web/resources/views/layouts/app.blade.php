@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="description" content="VisionSY 校园媒体资产管理系统 · 统一归档、分级取用、校园网激活。">
+    <link rel="icon" href="{{ asset('favicon.ico') }}?v=1" sizes="any">
     <title>@yield('title', 'VisionSY · 校园媒体资产管理系统')</title>
     @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -55,9 +56,7 @@
         <div class="nav-bar liquid-glass-dark mx-auto flex h-12 max-w-shell items-center justify-between px-4 transition-all duration-300 sm:px-5">
 
             <a href="{{ route('home') }}" class="group relative z-10 inline-flex items-center gap-2.5">
-                {{-- VisionSY 品牌 logo 占位符：当前用 .brand-mark 蓝色 "V" 字方块占位，
-                     后续替换为正式 logo 见 components/brand.blade.php 顶部注释。 --}}
-                <span class="brand-mark h-9 w-9 text-sm" aria-hidden="true">V</span>
+                <img src="{{ asset('images/brand/logo.png') }}" class="h-9 w-9 object-contain" alt="VisionSY">
                 <span class="flex flex-col leading-none">
                     <span class="text-[15px] font-semibold tracking-tight text-[color:var(--nav-fg)]">VisionSY</span>
                     <span class="mt-0.5 hidden font-meta text-[10px] uppercase tracking-[0.14em] text-[color:var(--nav-fg-muted)] sm:block">Campus Media Archive</span>

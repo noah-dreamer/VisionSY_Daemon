@@ -39,6 +39,8 @@ export default defineConfig({
         proxy: {
             '/playcaptcha.svg': 'http://app:80',
             '/toys': 'http://app:80',
+            '/favicon.ico': 'http://app:80',
+            '/images': 'http://app:80',
         },
         watch: {
             // Windows Docker bind mount 不支持文件事件，使用轮询。

@@ -1,7 +1,7 @@
 <footer class="border-t border-ink-100 bg-white">
     <div class="shell flex flex-col gap-3 py-5 text-xs text-ink-400 sm:flex-row sm:items-center sm:justify-between">
         <p class="flex items-center gap-2.5">
-            <span class="brand-mark h-6 w-6 text-[11px]" aria-hidden="true">V</span>
+            <img src="{{ asset('images/brand/logo.png') }}" class="h-6 w-6 object-contain" alt="VisionSY">
             <span>© {{ date('Y') }} VisionSY · 学校宣传部 校园媒体资产管理系统</span>
         </p>
         <p class="flex items-center">
