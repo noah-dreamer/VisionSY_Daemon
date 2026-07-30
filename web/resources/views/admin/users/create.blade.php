@@ -37,8 +37,8 @@
                     @error('user_group_id') <p class="form-error">{{ $message }}</p> @enderror
                 </div>
 
-            <x-field name="password" label="初始密码" :value="old('password')" mono required
-                     placeholder="至少 8 位，请告知用户后让其修改" />
+            <x-field name="password" label="初始密码" type="password" mono required
+                     placeholder="至少 8 位，请告知用户后让其修改" autocomplete="new-password" />
 
             <div class="flex items-center gap-3 sm:col-span-2">
                 <button type="submit" class="btn-primary">创建账号</button>

@@ -18,84 +18,29 @@
             @csrf
             @method('PUT')
 
-            <div>
-                <label for="current_password" class="form-label">
-                    当前密码
-                </label>
+            <x-field
+                name="current_password"
+                label="当前密码"
+                type="password"
+                required
+                autocomplete="current-password"
+            />
 
-                <input
-                    type="password"
-                    name="current_password"
-                    id="current_password"
-                    required
-                    autocomplete="current-password"
-                    class="form-input mt-1 w-full
-                           @error('current_password')
-                               border-red-300 bg-red-50/30 focus:border-red-500 focus:ring-red-500/20
-                           @enderror"
-                    @error('current_password')
-                        aria-invalid="true"
-                        aria-describedby="current-password-error"
-                    @enderror
-                >
+            <x-field
+                name="password"
+                label="新密码"
+                type="password"
+                required
+                autocomplete="new-password"
+            />
 
-                @error('current_password')
-                    <p
-                        id="current-password-error"
-                        class="form-error"
-                        role="alert"
-                    >
-                        {{ $message }}
-                    </p>
-                @enderror
-            </div>
-
-            <div>
-                <label for="password" class="form-label">
-                    新密码
-                </label>
-
-                <input
-                    type="password"
-                    name="password"
-                    id="password"
-                    required
-                    autocomplete="new-password"
-                    class="form-input mt-1 w-full
-                           @error('password')
-                               border-red-300 bg-red-50/30 focus:border-red-500 focus:ring-red-500/20
-                           @enderror"
-                    @error('password')
-                        aria-invalid="true"
-                        aria-describedby="password-error"
-                    @enderror
-                >
-
-                @error('password')
-                    <p
-                        id="password-error"
-                        class="form-error"
-                        role="alert"
-                    >
-                        {{ $message }}
-                    </p>
-                @enderror
-            </div>
-
-            <div>
-                <label for="password_confirmation" class="form-label">
-                    确认新密码
-                </label>
-
-                <input
-                    type="password"
-                    name="password_confirmation"
-                    id="password_confirmation"
-                    required
-                    autocomplete="new-password"
-                    class="form-input mt-1 w-full"
-                >
-            </div>
+            <x-field
+                name="password_confirmation"
+                label="确认新密码"
+                type="password"
+                required
+                autocomplete="new-password"
+            />
 
             <div class="pt-1">
                 <button type="submit" class="btn-primary text-sm">
