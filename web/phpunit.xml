@@ -17,6 +17,18 @@
         </include>
     </source>
     <php>
+        <!--
+            ⚠️ 注意：以下 <env> 默认 force="false"，即"环境变量已存在时不覆盖"。
+            在 Docker 容器内运行测试时，app 容器已由 env_file: .env 注入了真实的
+            DB_CONNECTION / DB_DATABASE / CACHE_STORE / INTERNAL_API_SECRET / CAPTCHA_* 等，
+            因此这里的值会被静默忽略 —— 曾导致测试在开发库上执行 migrate:fresh，把库清空。
+
+            容器内测试必须走 `node deploy/docker/test.mjs`（用 docker compose exec -e
+            从外部注入，优先级最高）。此处保留这些值仅用于宿主机原生 php artisan test。
+
+            不要在这里加 force="true"：那会反过来压掉 test.mjs 指定的 visionsy_test 库名。
+            web/tests/TestCase.php 中有保险丝兜底。
+        -->
         <env name="APP_ENV" value="testing"/>
         <env name="APP_KEY" value="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

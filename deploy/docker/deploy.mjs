@@ -72,19 +72,29 @@ function run(args, { retries = 1, delayMs = 4000, label = '' } = {}) {
 console.log(`[deploy] 模式 = ${mode}（${override}）`);
 
 // 1) 构建镜像（网络敏感：BuildKit 需解析/拉取基础镜像，失败自动重试）
-console.log('\n[deploy] 1/3 构建应用镜像...');
+console.log('\n[deploy] 1/5 构建应用镜像...');
 run(['build'], { retries: mode === 'prod' ? 3 : 5, delayMs: 4000, label: ' [build]' });
 
 // 2) 启动并等待健康（--wait 会等待 healthcheck 通过；app 依赖 db 健康后才起）
-console.log('\n[deploy] 2/3 启动服务并等待健康（up -d --wait）...');
+console.log('\n[deploy] 2/5 启动服务并等待健康（up -d --wait）...');
 run(['up', '-d', '--wait'], { retries: 4, delayMs: 4000, label: ' [up]' });
 
 // 3) 迁移（非破坏性，不 seed）。这是发布步骤的核心，确保库结构与代码一致。
-console.log('\n[deploy] 3/3 执行迁移（migrate --force，非破坏性）...');
+console.log('\n[deploy] 3/5 执行迁移（migrate --force，非破坏性）...');
 run(['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force'], { label: ' [migrate]' });
 
-console.log('\n[deploy] 建立 storage 软链接（storage:link，若已存在会跳过）...');
+// 4) 清理启动缓存。bootstrap_cache 是命名卷：镜像重建不会更新它；一旦其中残留过
+//    config 缓存，Laravel 会跳过加载 .env，出现"改了配置却不生效"的诡异现象。
+console.log('\n[deploy] 4/5 清理启动缓存（optimize:clear）...');
+run(['exec', '-T', 'app', 'php', 'artisan', 'optimize:clear'], { label: ' [optimize:clear]' });
+
+console.log('\n[deploy] 5/5 建立 storage 软链接（storage:link，若已存在会跳过）...');
 run(['exec', '-T', 'app', 'php', 'artisan', 'storage:link'], { label: ' [storage:link]' });
+
+if (mode === 'prod') {
+    console.log('\n[deploy] 生产缓存预热（optimize）...');
+    run(['exec', '-T', 'app', 'php', 'artisan', 'optimize'], { label: ' [optimize]' });
+}
 
 if (mode === 'dev') {
     console.log('\n[deploy] 完成。');
@@ -93,6 +103,6 @@ if (mode === 'dev') {
     console.log('  首次或需要演示数据时（仅可丢弃开发库）：执行任务「⚠ 重建可丢弃开发数据库 (危险)」。');
 } else {
     console.log('\n[deploy] 完成。建议随后执行生产任务：');
-    console.log('  - 缓存预热 (config/route/view:cache)');
+
     console.log('  - 健康诊断 (visionsy:health-diagnostics) 与 curl /up');
 }

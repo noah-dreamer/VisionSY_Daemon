@@ -142,6 +142,8 @@ class MediaLibraryTest extends TestCase
         $member = User::factory()->role(UserRole::PropagandaMember, '李拍摄')->create();
         $resource = $this->uploadAs($member);
 
+        auth()->logout();
+
         $this->get(route('media.index'))->assertOk()->assertSee('校运会开幕式');
         $this->get(route('media.thumb', $resource))->assertOk();
         $this->get(route('media.preview', $resource))->assertRedirect(route('login'));

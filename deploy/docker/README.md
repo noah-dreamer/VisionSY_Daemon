@@ -174,18 +174,21 @@ docker compose -p visionsy-test -f compose.yaml -f compose.dev.yaml ps
 docker compose -p visionsy-test -f compose.yaml -f compose.dev.yaml exec app php artisan about
 docker compose -p visionsy-test -f compose.yaml -f compose.dev.yaml exec app php artisan migrate:status
 curl -fsS http://127.0.0.1:8000/up
-docker compose -p visionsy-test -f compose.yaml -f compose.dev.yaml exec app php artisan test
+node test.mjs        # 测试必须走此入口（隔离测试库），不要裸跑 php artisan test
 docker compose -p visionsy-test down            # 保留卷；加 -v 才会删除数据（勿对真实数据执行）
 ```
 
 ## 在容器内运行测试
 
 - **dev 镜像**经 `compose.dev.yaml` 的构建参数 `INSTALL_COMPOSER_DEV=1` 安装 Composer dev 依赖
-  （phpunit/collision），因此开发容器内可运行 `php artisan test`（测试用 SQLite `:memory:`，自包含，不依赖 MariaDB）。
-- **生产镜像**默认 `--no-dev`，不含 `test` 命令（也不应在生产跑测试）。
-- 若从生产镜像切换到 dev 镜像后 `test` 命令缺失，多为 `bootstrap/cache` 包清单缓存所致：
-  执行 `docker compose ... exec app php artisan package:discover --ansi` 重建清单；
-  依赖不一致时用 `up -d --build --renew-anon-volumes` 刷新匿名 vendor 卷。
+  （phpunit/collision），因此开发容器内具备运行测试的能力。
+- ⚠️ **必须用 `node deploy/docker/test.mjs` 运行，不要在容器内裸跑 `php artisan test`。**
+  容器内 `env_file: .env` 注入的 `DB_CONNECTION=mysql` / `DB_DATABASE=visionsy` 是真实进程
+  环境变量，会压掉 `phpunit.xml` 里 `force="false"` 的 `<env>` 值；而 `tests/Feature` 全部
+  `use RefreshDatabase`，会在开发库上执行 `migrate:fresh`（drop 所有表且不 seed），
+  直接后果是种子账号消失、登录报"邮箱或密码不正确"。
+  `test.mjs` 用 `docker compose exec -e` 从外部注入测试变量，并指向独立的一次性库
+  `visionsy_test`。
 
 > 会话 A 环境已安装 Docker，上述构建 / 启动 / `/up` / MariaDB 迁移 / 唯一索引 / 容器内测试均已实测通过。
 

@@ -5,6 +5,9 @@
     //
     //   首次：初始化开发环境    日常：一键部署    生产：一键发布
     //
+    //   运行测试：只用「VisionSY: 测试」（走 deploy/docker/test.mjs，隔离测试库）。
+    //   绝不要执行 `docker compose exec app php artisan test`——它会清空开发数据库。
+    //
     // 种子账号（重建开发数据库后可用，密码统一 visionsy-dev）：
     //   admin@example.com 管理员 · media@example.com 宣传部 · teacher@example.com 官微
     //   student@student.example.com 普通用户 · pending@student.example.com 待激活
@@ -83,10 +86,38 @@
         },
         {
             "label": "VisionSY: 测试",
-            "detail": "容器内运行全部测试（php artisan test）",
+            "detail": "在隔离测试库 visionsy_test 上运行全部测试。禁止裸跑 php artisan test（会清空开发库）",
+            "type": "process",
+            "command": "node",
+            "args": ["test.mjs"],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 创建/修复管理员账号",
+            "detail": "幂等修复管理员登录（visionsy:ensure-admin）。非破坏性，生产亦可用",
             "type": "process",
             "command": "docker",
-            "args": ["compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env", "exec", "-T", "app", "php", "artisan", "test"],
+            "args": [
+                "compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env",
+                "exec", "-T", "app",
+                "php", "artisan", "visionsy:ensure-admin", "${input:adminEmail}"
+            ],
+            "options": { "cwd": "${workspaceFolder}/deploy/docker" },
+            "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
+            "problemMatcher": []
+        },
+        {
+            "label": "VisionSY: 用户数量自检",
+            "detail": "登录失效时先跑这个：输出 users 表行数。返回 0 说明库被清空了",
+            "type": "process",
+            "command": "docker",
+            "args": [
+                "compose", "-f", "compose.yaml", "-f", "compose.dev.yaml", "--env-file", ".env",
+                "exec", "-T", "app",
+                "php", "artisan", "tinker", "--execute=echo 'users=' . App\\Models\\User::count() . PHP_EOL;"
+            ],
             "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
@@ -100,6 +131,14 @@
             "options": { "cwd": "${workspaceFolder}/deploy/docker" },
             "presentation": { "reveal": "always", "panel": "dedicated", "group": "visionsy" },
             "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "adminEmail",
+            "type": "promptString",
+            "description": "管理员邮箱",
+            "default": "admin@example.com"
         }
     ]
 }

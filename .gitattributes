@@ -1,0 +1,10 @@
+# ============================================================
+# VisionSY 换行符策略（仅约束对换行敏感的文件，避免全仓库 diff 噪音）
+# 原因：Docker/Compose 与部分工具读取 env 文件时不会剥离 CRLF 的 \r，
+#       会让 SEED_DEFAULT_PASSWORD 等值带上尾随 \r，产生极难排查的鉴权 bug。
+# ============================================================
+
+.env.example      text eol=lf
+.env.*.example    text eol=lf
+*.sh              text eol=lf
+*.mjs             text eol=lf

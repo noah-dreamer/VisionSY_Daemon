@@ -118,4 +118,6 @@ compose(['exec', '-T', 'app', 'php', 'artisan', 'storage:link']);
 console.log('\n[init] 完成。');
 console.log('  Web      : http://localhost:8000');
 console.log('  Vite HMR : http://localhost:5173');
-console.log('  如需演示数据（仅可丢弃的开发库）：docker compose -f compose.yaml -f compose.dev.yaml exec -T app php artisan db:seed');
+console.log('  如需演示数据（仅可丢弃的开发库）：执行任务「VisionSY: ⚠ 重建开发数据库」。');
+console.log('  只是管理员登不进去（不想清空数据）：执行任务「VisionSY: 创建/修复管理员账号」。');
+console.log('  运行测试：执行任务「VisionSY: 测试」（node deploy/docker/test.mjs，隔离测试库）。');

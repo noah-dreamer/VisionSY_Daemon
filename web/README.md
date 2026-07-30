@@ -22,7 +22,7 @@
 | PHP | ≥ 8.2（`pdo_mysql`、`mbstring`、`openssl`、`sqlite3`、**`gd`**） |
 | Laravel | 12 |
 | 前端 | Vite + Tailwind（设计系统在 `resources/`） |
-| 数据库 | 生产 MySQL；测试用 sqlite 内存库 |
+| 数据库 | 生产 / 开发 MariaDB；测试用独立库 `visionsy_test` |
 | Node | ≥ 20 |
 
 ---
@@ -72,4 +72,4 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app p
 - `.env` 的 `INTERNAL_API_SECRET` 换成密钥管理服务真实值；
 - `TRUSTED_PROXY_IPS` 确认为 反向代理网关 地址 `10.0.0.30`。
 
-> 注意：本仓库代码在无网络环境编写，`composer install` / `npm run build` / `php artisan test` 需在你本机执行；测试只依赖 sqlite。
+> 注意：本仓库代码在无网络环境编写，`composer install` / `npm run build` 需在你本机执行；测试必须通过 `node deploy/docker/test.mjs` 运行（隔离测试库）；不要裸跑 `php artisan test`。

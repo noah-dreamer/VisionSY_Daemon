@@ -66,7 +66,7 @@ VisionSY 的默认产品形态是：
 | HTTP 入口 | FrankenPHP（compose）；可选原生 `artisan serve` | FrankenPHP（compose） |
 | 前端资源 | Vite HMR（`vite` 服务） | 镜像构建期 `npm run build`，无 vite |
 | 数据库 | MariaDB（compose `db`） | MariaDB（compose `db`，不发布公网端口） |
-| 自动化测试 | SQLite `:memory:`（phpunit.xml） | 不用 SQLite 做生产一致性验证 |
+| 自动化测试 | 入口固定为 `node deploy/docker/test.mjs`；跑在独立库 `visionsy_test` 上（与生产同构） | 不在生产运行测试 |
 | 队列 | database（worker 服务） | database（worker 服务，长驻） |
 | `APP_ENV` | `local` | `production` |
 | `APP_DEBUG` | `true` | `false` |

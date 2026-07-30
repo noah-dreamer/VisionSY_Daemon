@@ -636,7 +636,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 
 #### 已实现但受环境限制未实测
 
-- MariaDB 全量 `php artisan test`（仅 SQLite :memory: 验证，172 pass/15 fail 均为既有 flaky）
+- MariaDB 全量 `node deploy/docker/test.mjs`（跑在独立测试库 `visionsy_test` 上）
 - Docker 干净环境演练（避免影响现有运行容器）
 - Windows Docker Desktop 全新环境 checklist（已提供人工步骤）
 - deploy-docker.sh.example bash 语法（Windows 无 bash）
@@ -651,7 +651,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 
 #### 已知风险
 
-- SQLite 与 MariaDB 行为差异（已通过 Docker 容器内 MariaDB 迁移验证迁移文件，但全量测试仅在 SQLite 运行）
+- SQLite 与 MariaDB 行为差异（已通过 Docker 容器内 MariaDB 迁移验证迁移文件，全量测试现在跑在 `visionsy_test` 上）
 - 单机部署无零停机、无故障转移
 - 长扫描 Job（3600s）在 worker 重启时可能中断
 - backup_db 中密码通过容器环境变量 MARIADB_ROOT_PASSWORD 传递（docker exec 内可见，生产建议使用密钥管理服务）
@@ -709,7 +709,10 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 - 首先运行：
   - `cd web && php artisan test --filter="MediaIdentityAndMissingTest|GalleryScanTest|MediaPathRefactoringTest"`（确认 47 pass/1 skip）。
   - Docker 环境就绪后：`deploy/docker/README.md` 验证清单。
-  - **MariaDB 全量测试**：`docker compose exec app php artisan test`（当前仅 SQLite 验证）。
+  - **MariaDB 全量测试**：`node deploy/docker/test.mjs`（跑在独立测试库 `visionsy_test` 上）。
+    ⚠️ 不要用 `docker compose exec app php artisan test`：容器内 `.env` 的真实
+    `DB_CONNECTION`/`DB_DATABASE` 会压掉 `phpunit.xml`，`RefreshDatabase` 的 `migrate:fresh`
+    会清空开发库（历史事故，已由 `web/tests/TestCase.php` 的保险丝拦截）。
 - 阶段 6（生产发布演练、备份/恢复、监控与告警）要点：
   - 验证 `deploy-docker.sh.example` 脚本在真实环境的 backup/restore 流程。
   - MariaDB dump + 还原验证；DAM 三目录备份方案。

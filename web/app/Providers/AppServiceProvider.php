@@ -10,6 +10,7 @@ use App\Services\Media\StorageSourceService;
 use App\Services\TrustedProxyIpResolver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -48,6 +49,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // 生产环境禁用破坏性数据库命令（migrate:fresh / migrate:refresh / migrate:reset / db:wipe）。
+        // 生产恢复管理员账号请用 `php artisan visionsy:ensure-admin`，切勿重建数据库。
+        DB::prohibitDestructiveCommands($this->app->isProduction());
+
         // 登录失败限速：同一 邮箱+IP 每分钟最多 5 次
         RateLimiter::for('login', function (Request $request) {
             $email = mb_strtolower((string) $request->input('email'));

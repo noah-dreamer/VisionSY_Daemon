@@ -23,7 +23,7 @@ class DashboardTest extends TestCase
             ->get('/dashboard')
             ->assertOk()
             ->assertSee('进入媒体库')
-            ->assertSee('https://media.example.com');
+            ->assertSee(route('media.index'));
     }
 
     public function test_disabled_user_sees_disabled_notice(): void
