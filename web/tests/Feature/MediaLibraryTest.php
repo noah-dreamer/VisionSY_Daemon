@@ -149,6 +149,20 @@ class MediaLibraryTest extends TestCase
         $this->get(route('media.preview', $resource))->assertRedirect(route('login'));
     }
 
+    public function test_media_detail_back_link_has_index_fallback_and_history_hook(): void
+    {
+        $member = User::factory()->role(UserRole::PropagandaMember, '李拍摄')->create();
+        $resource = $this->uploadAs($member);
+
+        $this->actingAs($member)
+            ->get(route('media.show', $resource))
+            ->assertOk()
+            ->assertSee('返回媒体库')
+            ->assertSee('href="'.route('media.index').'"', false)
+            ->assertSee('data-media-library-back', false)
+            ->assertSee('window.history.back()', false);
+    }
+
     public function test_archived_resource_hidden_from_normal_users(): void
     {
         $member = User::factory()->role(UserRole::PropagandaMember, '李拍摄')->create();

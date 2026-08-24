@@ -10,8 +10,25 @@
     <section class="shell py-12 sm:py-16">
         <div class="mx-auto max-w-5xl space-y-6">
 
-            <a href="{{ route('media.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 transition hover:text-ink-900">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12l7.5-7.5M3 12h18"/></svg>
+            <a
+                href="{{ route('media.index') }}"
+                class="btn-secondary group w-fit"
+                data-media-library-back
+            >
+                <svg
+                    class="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M10.5 19.5 3 12l7.5-7.5M3 12h18"
+                    />
+                </svg>
                 返回媒体库
             </a>
 
@@ -185,12 +202,40 @@
 <script type="module">
 import { probeIntranet } from '{{ Vite::asset('resources/js/intranet-probe.js') }}';
 
+const mediaLibraryBackLink = document.querySelector('[data-media-library-back]');
+
+mediaLibraryBackLink?.addEventListener('click', (event) => {
+    if (! document.referrer || window.history.length <= 1) {
+        return;
+    }
+
+    try {
+        const referrerUrl = new URL(document.referrer);
+        const mediaIndexUrl = new URL(mediaLibraryBackLink.href);
+        const normalizePath = (path) => path.replace(/\/+$/, '') || '/';
+
+        const cameFromMediaIndex =
+            referrerUrl.origin === window.location.origin
+            && normalizePath(referrerUrl.pathname) === normalizePath(mediaIndexUrl.pathname);
+
+        if (! cameFromMediaIndex) {
+            return;
+        }
+
+        event.preventDefault();
+        window.history.back();
+    } catch {
+        // URL 无法解析时保留链接原本的媒体库首页回退行为。
+    }
+});
+
 (async () => {
     const isCampus = await probeIntranet();
     const param = isCampus ? 'is_campus=1' : 'is_campus=0';
-    document.querySelectorAll('.intranet-download-link').forEach(link => {
-        const sep = link.href.includes('?') ? '&' : '?';
-        link.href += sep + param;
+
+    document.querySelectorAll('.intranet-download-link').forEach((link) => {
+        const separator = link.href.includes('?') ? '&' : '?';
+        link.href += separator + param;
     });
 })();
 </script>
