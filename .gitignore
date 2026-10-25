@@ -54,6 +54,9 @@ public/hot
 .DS_Store
 Thumbs.db
 .idea/
+.vscode/
+AGENT.md
+AGENTS.md
 
 # Backups / dumps
 *.sql
