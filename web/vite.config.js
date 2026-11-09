@@ -2,6 +2,10 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 
+const devServer = process.env.VITE_DEV_SERVER_URL
+    ? new URL(process.env.VITE_DEV_SERVER_URL)
+    : null;
+
 export default defineConfig({
     plugins: [
         laravel({
@@ -34,6 +38,20 @@ export default defineConfig({
         host: '0.0.0.0',
         port: 5173,
         strictPort: true,
+        ...(devServer ? {
+            origin: devServer.origin,
+            hmr: {
+                host: devServer.hostname,
+                clientPort: Number(devServer.port || (devServer.protocol === 'https:' ? 443 : 80)),
+                protocol: devServer.protocol === 'https:' ? 'wss' : 'ws',
+            },
+            cors: {
+                origin: [
+                    process.env.APP_URL || devServer.origin,
+                    /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/,
+                ],
+            },
+        } : {}),
         // PlayCaptcha assets proxy: use Docker service name for cross-container access.
         // The Vite container is on the visionsy network; app:80 is the FrankenPHP service.
         proxy: {

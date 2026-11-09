@@ -4,7 +4,7 @@ namespace App\Services\Media;
 
 use App\Enums\DerivativeStatus;
 use App\Enums\MediaStatus;
-use App\Jobs\Media\GenerateMediaDerivatives;
+use App\Jobs\Media\ProcessNewUpload;
 use App\Models\MediaGallery;
 use App\Models\MediaResource;
 use App\Models\MediaStorageSource;
@@ -63,23 +63,23 @@ class MediaScannerService
             }
         }
 
+        $missing = $this->markMissingFiles($gallery, $discoveredPaths);
+
         $pendingResources = MediaResource::query()
             ->where('gallery_id', $gallery->id)
+            ->where('index_status', MediaStatus::Active->value)
             ->where('derivative_status', DerivativeStatus::Pending->value)
-            ->whereIn('type', ['image'])
             ->pluck('id');
 
         foreach ($pendingResources as $resourceId) {
             try {
-                GenerateMediaDerivatives::dispatch($resourceId);
+                ProcessNewUpload::dispatch($resourceId);
             } catch (Throwable $e) {
                 Log::warning("派生生成任务调度失败 #{$resourceId}", [
                     'error' => $e->getMessage(),
                 ]);
             }
         }
-
-        $missing = $this->markMissingFiles($gallery, $discoveredPaths);
 
         $gallery->update([
             'scan_status' => 'completed',
@@ -100,7 +100,7 @@ class MediaScannerService
 
     /**
      * 枚举图库内文件（generator，有界内存）。
-     * 忽略 _visionsy 目录、隐藏文件、符号链接和排除模式。
+     * 整个跳过 preview、旧 _visionsy、隐藏目录、符号链接和排除模式。
      * scan_recursive=false 时仅扫描一级目录。
      *
      * @return \Generator<array{absolute_path: string, relative_path: string, size: int, mtime: int, identity: string}>
@@ -109,60 +109,42 @@ class MediaScannerService
     {
         $galleryPath = $gallery->fullPath();
         $excludeList = config('visionsy.media.scan_exclude_patterns', []);
-        $recursive = (bool) $source->scan_recursive;
-
+        // The root gallery indexes loose files; child folders are separate galleries.
+        $recursive = (bool) $source->scan_recursive && $gallery->relative_path !== '';
         $normalizedGalleryPath = rtrim(str_replace('\\', '/', $galleryPath), '/').'/';
         $galleryPathLen = strlen($normalizedGalleryPath);
 
+        $accept = function (\SplFileInfo $item) use ($excludeList): bool {
+            $name = $item->getBasename();
+            if ($item->isLink() || str_starts_with($name, '.')
+                || in_array(strtolower($name), [PathResolverService::DERIVATIVE_DIR, PathResolverService::LEGACY_DERIVATIVE_DIR], true)) {
+                return false;
+            }
+            foreach ($excludeList as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $name, FNM_CASEFOLD)) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
         if ($recursive) {
             $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($galleryPath, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::KEY_AS_PATHNAME),
-                \RecursiveIteratorIterator::SELF_FIRST
+                new \RecursiveCallbackFilterIterator(
+                    new \RecursiveDirectoryIterator($galleryPath, \FilesystemIterator::SKIP_DOTS),
+                    $accept
+                )
             );
         } else {
-            $iterator = new \DirectoryIterator($galleryPath);
+            $iterator = new \FilesystemIterator($galleryPath, \FilesystemIterator::SKIP_DOTS);
         }
 
         foreach ($iterator as $item) {
-            if (! $recursive && $item->isDot()) {
+            if (! $accept($item) || ! $item->isFile()) {
                 continue;
             }
-
             $itemPath = str_replace('\\', '/', $item->getPathname());
-
-            if (str_contains($itemPath, '/'.PathResolverService::DERIVATIVE_DIR.'/')
-                || str_ends_with($itemPath, '/'.PathResolverService::DERIVATIVE_DIR)) {
-                continue;
-            }
-
-            $basename = $item->getBasename();
-
-            if (str_starts_with($basename, '.')) {
-                continue;
-            }
-
-            if ($item->isLink()) {
-                continue;
-            }
-
-            $skip = false;
-            foreach ($excludeList as $pattern) {
-                if ($pattern === '') {
-                    continue;
-                }
-                $regex = '/^'.str_replace(['\\*', '\\?'], ['.*', '.'], preg_quote($pattern, '/')).'$/i';
-                if (preg_match($regex, $basename)) {
-                    $skip = true;
-                    break;
-                }
-            }
-            if ($skip) {
-                continue;
-            }
-
-            if (! $item->isFile()) {
-                continue;
-            }
 
             $absPath = $item->getPathname();
             $relPath = substr($itemPath, $galleryPathLen);
@@ -207,16 +189,7 @@ class MediaScannerService
             }
 
             if ($existing->isMissing()) {
-                $existing->update([
-                    'index_status' => MediaStatus::Active->value,
-                    'missing_at' => null,
-                    'last_seen_at' => now(),
-                    'source_size_bytes' => $fileInfo['size'],
-                    'source_modified_at' => $fileMtime,
-                    'source_identity' => $fileInfo['identity'],
-                ]);
-
-                return 'updated';
+                $needsUpdate = true;
             }
 
             if ($needsUpdate) {
@@ -224,6 +197,10 @@ class MediaScannerService
                 $typeResult = $this->fileTypeDetector->detect($fileInfo['absolute_path']);
 
                 $existing->update([
+                    'index_status' => MediaStatus::Active->value,
+                    'missing_at' => null,
+                    'size_bytes' => $fileInfo['size'],
+                    'type' => $this->fileTypeDetector->toMediaType($typeResult['category']),
                     'source_size_bytes' => $fileInfo['size'],
                     'source_modified_at' => $fileMtime,
                     'source_identity' => $fileInfo['identity'],
@@ -241,7 +218,17 @@ class MediaScannerService
                 return 'updated';
             }
 
-            $existing->update(['last_seen_at' => now()]);
+            $updates = ['last_seen_at' => now()];
+            if (in_array($existing->type->value, ['image', 'video'], true)
+                && $existing->derivative_status === DerivativeStatus::Ready->value) {
+                foreach (DerivativeVariant::cases() as $variant) {
+                    if (! is_file($this->pathResolver->resolveNewDerivativeAbsolute($existing, $variant))) {
+                        $updates['derivative_status'] = DerivativeStatus::Pending->value;
+                        break;
+                    }
+                }
+            }
+            $existing->update($updates);
 
             return 'unchanged';
         }

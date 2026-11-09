@@ -1,3 +1,7 @@
+> 2026-11-10：生产现为单容器，独立使用 `compose.prod.yaml`。
+> 内置 MariaDB 11.4 与 Supervisor，启动顺序为数据库、增量迁移、网站/队列/调度器。
+> 以下分阶段记录保留历史实现；当前部署命令以 `deploy/INSTALL-LINUX.md` 为准。
+
 # Deployment Modernization Status
 
 > 跨会话实施记忆。每个阶段结束时更新。架构设计见 [`../architecture/deployment-and-dam-storage.md`](../architecture/deployment-and-dam-storage.md)。
@@ -170,12 +174,6 @@ vite 服务 `command` 从 `["sh", "-c", "npm install --no-audit --no-fund && npm
 - `server.host` 从 `'127.0.0.1'` 改为 `'0.0.0.0'`（与 Docker 需求一致，配置文件中明确，不再依赖 CLI `--host` 覆盖）
 - PlayCaptcha proxy 目标从 `http://127.0.0.1:8000` 改为 `http://app:80`（使用 Docker 服务名，在容器间可靠通信）
 
-**4. 新增 `.vscode/tasks.json` 诊断任务**
-
-- `VisionSY: 前端资源诊断`：检查 public/hot、manifest.json、build assets 状态
-- `VisionSY: 日志 - vite`：查看 Vite HMR 日志
-- `VisionSY: 重启 Vite (清理 public/hot)`：重启 Vite 容器，自动触发 vite-dev.sh 清理与修复
-
 #### 验证结果（2026-07-23 Windows Docker Desktop）
 
 - `docker compose ps`：5 个服务全部 running（app healthy, db healthy, vite up）
@@ -194,7 +192,6 @@ vite 服务 `command` 从 `["sh", "-c", "npm install --no-audit --no-fund && npm
 - `web/docker/vite-dev.sh`（新增）
 - `deploy/docker/compose.dev.yaml`（vite service command 改为 vite-dev.sh）
 - `web/vite.config.js`（host 改为 0.0.0.0，proxy 改为 app:80）
-- `.vscode/tasks.json`（新增 3 个前端诊断任务）
 
 #### Windows 日常开发启动
 
@@ -204,13 +201,12 @@ cd VisionSY_Private/deploy/docker
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 ```
 
-若需前端修复/重启 Vite：VS Code 任务 `VisionSY: 重启 Vite (清理 public/hot)` 或 `docker compose restart vite`。
+若需前端修复/重启 Vite，在 `deploy/docker` 目录运行 `docker compose -f compose.yaml -f compose.dev.yaml --env-file .env restart vite`。
 
 ### 阶段 3：统一日常开发与生产运维入口
 
 #### 新增/重写文件
 
-- `.vscode/tasks.json`（工作区根，VSCode 实际使用）与 `VisionSY_Private/.vscode/tasks.json`（仓库内跟踪版）：重写为 15 个任务，**全部** `type=process` + args 数组，仅调用 `docker compose` 或跨平台 Node 脚本，不依赖 bash/cmd 的 `&&`/`rm`。覆盖：初始化/构建、启动、停止（保留数据卷，不 `down -v`）、app/worker/scheduler 日志、DAM 相关测试与全量测试、前端构建（重建镜像）、migrate、查看失败任务、手动 DAM 扫描、app shell；保留明确命名且带警告的「⚠ 重建可丢弃开发数据库 (危险)」（`migrate:fresh --seed`，非默认）。初始化任务不覆盖已有 `.env`、不隐式 `migrate:fresh`。
 - `deploy/docker/init.mjs`：跨平台初始化脚本（Node）。生成 `.env`（不覆盖）→ 构建 → 启动 → `key:generate --show` 生成并写回 APP_KEY → `migrate`（非 fresh、不 seed）；任一步失败即退出。
 - `deploy/scripts/deploy-docker.sh.example`：Linux 生产发布脚本（`set -euo pipefail`）。子命令 `install`（首次）/`update`（日常：备份 DB→构建→重建→迁移→优化→重载 worker→健康检查）/`backup`（mariadb-dump）/`status`。不自动 seed、不在启动时并发迁移、不 `down -v`；README/脚本注明单机非零停机、需维护窗口。遵循仓库约定以 `.example` 命名（`deploy/.gitignore` 忽略真实 `scripts/*.sh`）。
 - `deploy/docker/README.md`：快速开始（dev/prod）、DAM 挂载（Win/Linux）、服务与运行方式、持久化、Windows 注意、Vite HMR、验证清单。
@@ -225,12 +221,10 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 
 #### 阶段 3 验证结果
 
-- 两份 `tasks.json`：JSON 结构有效（各 15 个任务，剥离注释后可解析）。
 - `deploy-docker.sh.example`：`bash -n` 语法通过（Git Bash）。
 - `init.mjs`：`node --check` 语法通过。
 - 三个 compose YAML：解析通过（阶段 2）。
-- 服务名与 compose 文件：tasks 中 `app/worker/scheduler/db` 与 `compose.yaml` 一致；`-f compose.yaml -f compose.dev.yaml --env-file .env` 组合一致。
-- **未运行**（本机无 Docker）：`docker compose config`、各任务实际执行、deploy 脚本运行期。
+- **未运行**（本机无 Docker）：`docker compose config`、deploy 脚本运行期。
 
 ### 阶段 2：Docker Compose 与 FrankenPHP（静态配置）
 
@@ -272,7 +266,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 - **唯一索引**：`SHOW INDEX` 确认 `media_resources_gallery_path_hash_unique`（BTREE 唯一，gallery_id + relative_path_hash）在 MariaDB 上存在。
 - **首页**：`http://localhost:8000/` 返回 HTTP 200（约 32KB，含构建期生成的前端资源）。
 - **容器内测试**：dev 镜像（`INSTALL_COMPOSER_DEV=1`）内 `php artisan test --filter=MediaIdentityAndMissingTest` → **15 通过（41 断言）**。
-- **init.mjs 全流程**：`node init.mjs` 成功（构建→启动→APP_KEY→migrate→完成），即「初始化开发环境 (Docker)」任务可用。
+- **init.mjs 全流程**：`node init.mjs` 成功（构建→启动→APP_KEY→migrate→完成）。
 
 #### 验证中发现并修复的真实问题（“仅 SQLite 测试”遗漏、目标库 MariaDB 暴露）
 
@@ -337,7 +331,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 ### 阶段 0：当前状态核验与架构基线
 
 - 核验 Git：`VisionSY_Private` 为 git 仓库（分支 `main`，HEAD `d927a4e`），工作树干净；未跟踪文件均为被 `.gitignore` 忽略的本地环境文件（`.env`、`.env.dev.example`、`database/database.sqlite`、`node_modules/`、`public/build/`、`bootstrap/cache/*`、`storage/framework/cache/*` 等），符合预期，未触碰。工作区根目录本身不是 git 仓库。
-- 阅读：根/`web` README、`.vscode/tasks.json`（工作区根 + Private 内）、`deploy/`、`composer.json`/`package.json`、`.env.example`/`.env.dev.example`、`bootstrap/app.php`、`routes/console.php`、`config/{queue,visionsy,database,filesystems}.php`、DAM 模型/迁移/服务/Jobs/命令/枚举/测试。
+- 阅读：根/`web` README、`deploy/`、`composer.json`/`package.json`、`.env.example`/`.env.dev.example`、`bootstrap/app.php`、`routes/console.php`、`config/{queue,visionsy,database,filesystems}.php`、DAM 模型/迁移/服务/Jobs/命令/枚举/测试。
 - 建立测试基线：`php artisan test` → **130 通过 / 23 失败 / 2 跳过**（SQLite :memory:）。
 - 创建架构文档 `docs/architecture/deployment-and-dam-storage.md`。
 - 创建本状态文档。
@@ -519,7 +513,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 
 全部改动文件列表（阶段 1–6）：
 
-**修改文件（34）**：`.vscode/tasks.json`、`README.md`、`deploy/.gitignore`、`deploy/README.md`、`web/.env.example`、`web/README.md`、`web/vite.config.js`、`web/routes/console.php`、`web/bootstrap/app.php`、`web/config/queue.php`、`web/config/visionsy.php`、`web/Dockerfile`、`web/package-lock.json`、`web/resources/views/media/create.blade.php`、`web/database/migrations/2026_07_13_000030_*.php`、5 个 Job（Discover/Generate/Index/Scan/ProcessNew）、3 个 Model（Gallery/Resource/StorageSource）、3 个 Service（ImageDerivative/Scanner/Storage）、PathResolverService、2 个 Controller（MediaFile/MediaUpload）、8 个 Legacy deploy 文件。
+**修改文件**：`README.md`、`deploy/.gitignore`、`deploy/README.md`、`web/.env.example`、`web/README.md`、`web/vite.config.js`、`web/routes/console.php`、`web/bootstrap/app.php`、`web/config/queue.php`、`web/config/visionsy.php`、`web/Dockerfile`、`web/package-lock.json`、`web/resources/views/media/create.blade.php`、`web/database/migrations/2026_07_13_000030_*.php`、5 个 Job（Discover/Generate/Index/Scan/ProcessNew）、3 个 Model（Gallery/Resource/StorageSource）、3 个 Service（ImageDerivative/Scanner/Storage）、PathResolverService、2 个 Controller（MediaFile/MediaUpload）、8 个 Legacy deploy 文件。
 
 **新增文件（18）**：`deploy/docker/`（compose.yaml/compose.dev.yaml/compose.prod.yaml/.env*.example/README.md/init.mjs）、`deploy/scripts/deploy-docker.sh.example`、`docs/architecture/*.md`、`docs/implementation/*.md`、`web/.dockerignore`、`web/docker/Caddyfile`、`web/docker/Caddyfile.prod`、`web/docker/php.prod.ini`、`web/docker/vite-dev.sh`、`web/app/Console/Commands/` 5 个命令（Check/Health/Init/LegacyStats/Migrate）、`web/app/Jobs/Media/ProcessNewUpload.php`、`web/database/migrations/2026_07_22_000040_*.php`、`web/tests/Feature/` 2 个测试类。
 
@@ -740,6 +734,6 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 - **阶段 0**：核验 Git/工作区与 DAM 全链路实现，建立测试基线（130 通过/23 既有失败/2 跳过），产出架构文档与本状态文档；明确 4 个上线阻断问题与不可验证项（无 Docker/MariaDB）。
 - **阶段 1**：修复 4 个阻断问题——资源身份（gallery_id 查找 + `relative_path_hash` 唯一索引 + 冲突预检查命令 + 可回滚迁移）、Missing（空图库标记/离线不误标/枚举比较/恢复清除）、扫描锁（stale 75min > timeout 60min、失败释放锁）、Queue（retry_after 90→3700 > timeout 3600）。新增 15 测试全绿，迁移 up/down 验证，Pint 通过，未引入新失败。
 - **阶段 2**：Docker Compose + FrankenPHP 静态配置——多阶段 Dockerfile、Caddyfile、compose(base/dev/prod)、env 示例（Win/Linux DAM 挂载）、README。YAML 全部解析通过；运行期验证待 Docker 环境。
-- **阶段 3**：统一入口——重写两份 tasks.json（15 个 docker compose/process 任务）、跨平台 init.mjs、生产发布脚本 deploy-docker.sh.example、文档与 README（Docker 为默认、原生可选、legacy 标注）。JSON/bash/node 语法校验通过。
+- **阶段 3**：统一入口——跨平台 init.mjs、生产发布脚本 deploy-docker.sh.example、文档与 README（Docker 为默认、原生可选、legacy 标注）。bash/node 语法校验通过。
 - **未触碰**：VisionSY_Public；未 commit/push；未覆盖任何未跟踪 `.env`/数据；未对真实库执行破坏性操作。
 - **遗留**：23 个既有测试失败（TransferToken 401、UserGroup/MediaLibrary 下载 404、Dashboard 文案，顺序/时间相关 flaky），非会话 A 引入，留待后续；Docker/MariaDB 运行期验证待具备环境执行。

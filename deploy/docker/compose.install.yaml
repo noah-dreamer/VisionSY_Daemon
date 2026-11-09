@@ -1,0 +1,7 @@
+# Applied to the standalone compose.prod.yaml by install.sh.
+services:
+  app:
+    env_file: !override
+      - .env.install
+    ports: !override
+      - "${INSTALL_BIND_IP:-0.0.0.0}:${APP_PORT:-8000}:80"

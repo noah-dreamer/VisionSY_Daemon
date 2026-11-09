@@ -6,16 +6,18 @@
 >
 > - **统一账户**：媒体库直接使用官网的用户表与角色体系（宣传部 / 官微老师 / 普通用户 / 游客），无 SSO 跳转、无第二套账号数据库；
 > - **统一 UI**：媒体库页面复用官网的设计系统（同一套 Tailwind 设计令牌、卡片、按钮、徽章组件），视觉零违和；
+> - **统一媒体目录**：自动扫描已有文件，支持向同一图库上传；缩略图、预览及水印位于图库内 `preview/`，见[媒体库说明](docs/architecture/media-library.md)；
 > - **核心能力**：上传时读取照片/视频**全部内嵌标签**（exiftool 优先，回退 exif/getID3）、分级下载 + GD 自动平铺水印、SHA-256 去重、归档、审计；
 > - **用户/用户组/权限统一在官网后台管理**：权限位 + 每日下载限额 + IP 限制 + 注册默认组，与账号体系同库同后台，零割裂；
 > - **注册邮箱验证码**：注册后发送 6 位数字验证码（10 分钟有效、60 秒重发冷却、5 次尝试上限）；
 > - **登录人机验证**：直接接入开源 [PlayCaptcha](https://github.com/mortspace/playcaptcha)（React 抓娃娃机组件，npm 包 + 官方素材，服务端叠加一次性挑战/耗时下限/一次性 token 防线）；
-> - **一键测试（Docker）**：`.vscode/tasks.json` 提供「初始化开发环境 (Docker)」「一键部署 (开发)」任务，Docker Compose + FrankenPHP + MariaDB，开箱即用（见下方 Quick Start）；
+> - **容器开发与测试**：使用 Docker Compose + FrankenPHP + MariaDB 部署，通过 `node deploy/docker/test.mjs` 运行隔离数据库测试；
 >
 >
-> **Quick Start（Docker Compose，推荐）**：安装 Docker Desktop 后，打开仓库 → `Ctrl/Cmd+Shift+P` → *Tasks: Run Task* → **VisionSY: 初始化开发环境 (Docker)**（首次）→ **VisionSY: 一键部署 (开发)**（日常：构建+启动+迁移）→ 访问 <http://localhost:8000>（Vite HMR :5173）。
-> 命令行方式见 [`deploy/docker/README.md`](deploy/docker/README.md)。
-> 种子账号密码统一 `visionsy-dev`：`admin@example.com`（管理员）、`media@example.com`（宣传部，可上传/下原图）、`teacher@example.com`（官微编辑）、`student@student.example.com`（普通用户，仅水印图）。
+> **单容器生产部署**：网站、MariaDB 11.4、队列和调度器打包在一个容器，数据库和媒体持久保存。
+> **Linux 生产安装**：在仓库根目录运行 `bash install.sh`，自动补齐环境、构建镜像、生成密钥，并设置 HTTP 监听地址、媒体目录与管理员密码；域名和证书由独立反向代理负责，见[安装说明](deploy/INSTALL-LINUX.md)。
+> **开发部署**：按照 [`deploy/docker/README.md`](deploy/docker/README.md) 启动 Docker 开发环境，默认 Web :8000、Vite HMR :5173。
+> 一键安装只创建 `admin@example.com`，密码由安装时输入或随机生成；演示账号仅在手工运行开发种子数据时创建。
 >
 >
 > 依赖（Docker 方式）：Docker Desktop（Windows）或 Docker Engine + Compose（Linux）。
@@ -140,7 +142,7 @@ For local development, the default path is **Docker Compose** (FrankenPHP + Mari
 
 ```bash
 cd deploy/docker
-cp .env.dev.example .env          # then edit secrets / DAM_HOST_* paths
+cp .env.example .env          # then edit secrets / DAM_HOST_* paths
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d --build
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app php artisan key:generate --show
 #   paste the printed key into .env (APP_KEY), then: docker compose ... up -d
@@ -271,7 +273,7 @@ VisionSY/
 
 ```bash
 cd deploy/docker
-cp .env.dev.example .env          # 然后修改秘密与 DAM_HOST_* 路径
+cp .env.example .env          # 然后修改秘密与 DAM_HOST_* 路径
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d --build
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec -T app php artisan key:generate --show
 #   将输出的密钥填入 .env 的 APP_KEY，然后：docker compose ... up -d

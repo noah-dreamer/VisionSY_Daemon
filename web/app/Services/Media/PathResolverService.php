@@ -2,17 +2,18 @@
 
 namespace App\Services\Media;
 
-use App\Models\MediaGallery;
 use App\Models\MediaResource;
-use App\Models\MediaStorageSource;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class PathResolverService
 {
-    public const DERIVATIVE_DIR = '_visionsy';
+    public const DERIVATIVE_DIR = 'preview';
+
+    public const LEGACY_DERIVATIVE_DIR = '_visionsy';
 
     private readonly string $managedRoot;
+
     private readonly string $derivativesRoot;
 
     public function __construct()
@@ -52,10 +53,7 @@ class PathResolverService
 
     /**
      * 获取派生文件的绝对路径。
-     * 新派生统一写入独立的 derivatives 根目录，使用稳定 ID 层级：
-     *   {derivatives_root}/{source_id}/{gallery_id}/{resource_id}/{variant}/{filename}
-     *
-     * 读取时优先检查新路径，不存在则回退到旧 _visionsy/ 路径，保证兼容。
+     * 派生文件保存在所属图库的 preview/ 中；旧路径仍可读取。
      */
     public function resolveDerivativeAbsolute(MediaResource $resource, DerivativeVariant $variant): string
     {
@@ -73,10 +71,11 @@ class PathResolverService
             return $newPath;
         }
 
-        $legacyPath = $this->resolveLegacyDerivativePath($resource, $variant);
-
-        if (is_file($legacyPath)) {
-            return $legacyPath;
+        foreach ([$this->resolveIndependentDerivativePath($resource, $variant),
+            $this->resolveLegacyDerivativePath($resource, $variant)] as $oldPath) {
+            if (is_file($oldPath)) {
+                return $oldPath;
+            }
         }
 
         return $newPath;
@@ -95,9 +94,25 @@ class PathResolverService
     }
 
     /**
-     * 新派生路径：{derivatives_root}/{source_id}/{gallery_id}/{resource_id}/{subdir}/{filename}
+     * 图库内路径：{gallery}/preview/{resource_id}/{variant}.{ext}。
      */
     private function resolveNewDerivativePath(MediaResource $resource, DerivativeVariant $variant): string
+    {
+        if ($resource->storageSource === null || $resource->gallery === null) {
+            throw new RuntimeException('存储源或图库缺失，无法解析派生路径。');
+        }
+
+        $suffix = $variant === DerivativeVariant::WatermarkedPng ? '.png' : '.jpg';
+
+        return $this->resolvePath(
+            $resource->storageSource->root_path,
+            $resource->gallery->relative_path,
+            self::DERIVATIVE_DIR.'/'.$resource->id.'/'.$variant->value.$suffix
+        );
+    }
+
+    /** 兼容此前独立派生目录中的缓存文件。 */
+    public function resolveIndependentDerivativePath(MediaResource $resource, DerivativeVariant $variant): string
     {
         $sourceId = (string) $resource->storageSource->id;
         $galleryId = (string) $resource->gallery->id;
@@ -151,7 +166,7 @@ class PathResolverService
             DerivativeVariant::WatermarkedPng => 'watermarked/png',
         };
 
-        $derivativeRelative = self::DERIVATIVE_DIR.'/'.$subDir.'/'.ltrim($derivativeFile, '/');
+        $derivativeRelative = self::LEGACY_DERIVATIVE_DIR.'/'.$subDir.'/'.ltrim($derivativeFile, '/');
 
         return $this->resolvePath(
             $source->root_path,
@@ -165,14 +180,12 @@ class PathResolverService
      */
     public function ensureDerivativeDir(MediaResource $resource): string
     {
-        $sourceId = (string) $resource->storageSource->id;
-        $galleryId = (string) $resource->gallery->id;
-        $resourceId = (string) $resource->id;
-
-        $base = $this->derivativesRoot.'/'.$sourceId.'/'.$galleryId.'/'.$resourceId;
+        $base = dirname($this->resolveNewDerivativePath($resource, DerivativeVariant::Thumb));
 
         if (! is_dir($base)) {
-            @mkdir($base, 0775, true);
+            if (! @mkdir($base, 0775, true) && ! is_dir($base)) {
+                throw new RuntimeException('无法创建图库 preview 目录，请检查挂载的写入权限。');
+            }
         }
 
         return $base;

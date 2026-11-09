@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ScanStatus;
+use App\Services\Media\PathResolverService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -72,12 +73,12 @@ class MediaGallery extends Model
 
     public function fullPath(): string
     {
-        return rtrim(str_replace('\\', '/', $this->storageSource->root_path), '/').'/'.ltrim($this->relative_path, '/');
+        return rtrim(rtrim(str_replace('\\', '/', $this->storageSource->root_path), '/').'/'.ltrim($this->relative_path, '/'), '/');
     }
 
     public function derivativeRootPath(): string
     {
-        return $this->fullPath().'/_visionsy';
+        return $this->fullPath().'/'.PathResolverService::DERIVATIVE_DIR;
     }
 
     public function isScanning(): bool

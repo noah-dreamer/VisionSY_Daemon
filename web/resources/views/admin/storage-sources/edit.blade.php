@@ -3,6 +3,7 @@
 @section('page-title', '编辑存储源: '.$source->name)
 
 @section('settings-content')
+<p class="mb-4 prose-muted">目录会自动扫描；可写目录同时支持上传，预览文件保存在图库的 preview/ 中。</p>
 <form method="POST" action="{{ route('admin.storage-sources.update', $source) }}" class="card max-w-2xl space-y-6 p-6">
     @csrf @method('PUT')
 
@@ -29,8 +30,8 @@
         </x-field>
         <x-field label="写入权限" name="is_writable">
             <select name="is_writable" id="is_writable" class="form-input" aria-label="写入权限">
-                <option value="0" @selected(!$source->is_read_only)>只读</option>
-                <option value="1" @selected(!$source->is_read_only)>可写</option>
+                <option value="0" @selected(old('is_writable', $source->is_read_only ? '0' : '1') === '0')>只读</option>
+                <option value="1" @selected(old('is_writable', $source->is_read_only ? '0' : '1') === '1')>可写</option>
             </select>
         </x-field>
     </div>
@@ -40,12 +41,6 @@
             <select name="scan_recursive" id="scan_recursive" class="form-input" aria-label="递归扫描">
                 <option value="1" @selected(old('scan_recursive', $source->scan_recursive) === true)>递归扫描子目录</option>
                 <option value="0" @selected(old('scan_recursive', $source->scan_recursive) === false)>仅扫描一级目录</option>
-            </select>
-        </x-field>
-        <x-field label="受管模式" name="is_managed">
-            <select name="is_managed" id="is_managed" class="form-input" aria-label="受管模式">
-                <option value="0" @selected(old('is_managed', $source->is_managed) === false)>外部存储（只索引）</option>
-                <option value="1" @selected(old('is_managed', $source->is_managed) === true)>受管存储（可操作）</option>
             </select>
         </x-field>
     </div>

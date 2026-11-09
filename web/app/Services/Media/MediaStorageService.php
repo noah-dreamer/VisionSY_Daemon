@@ -11,9 +11,11 @@ use App\Models\MediaResource;
 use App\Models\MediaStorageSource;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 class MediaStorageService
 {
@@ -22,52 +24,81 @@ class MediaStorageService
         private MediaMetadataService $metadata,
         private AuditLogger $audit,
         private PathResolverService $pathResolver,
-    ) {
-    }
+    ) {}
 
-    public function disk(): \Illuminate\Contracts\Filesystem\Filesystem
+    public function disk(): Filesystem
     {
         return Storage::disk('local');
     }
 
     /**
-     * Managed 上传：原件写入 managed 根目录下的，资源必须归属明确的 storage_source 和 gallery。
+     * 上传原件写入所选图库，与目录扫描发现的文件共用索引和派生流程。
      */
     public function store(UploadedFile $file, array $meta, User $uploader): MediaResource
     {
         $sourceId = $meta['storage_source_id'] ?? null;
         $galleryId = $meta['gallery_id'] ?? null;
-
-        if ($sourceId === null || $galleryId === null) {
-            return $this->storeLegacy($file, $meta, $uploader);
+        if ($galleryId !== null) {
+            $gallery = MediaGallery::findOrFail($galleryId);
+            $source = $gallery->storageSource;
+            if ($sourceId !== null && (int) $sourceId !== (int) $source->id) {
+                throw new \RuntimeException('所选图库不属于所选存储源。');
+            }
+        } else {
+            $source = $sourceId !== null ? MediaStorageSource::findOrFail($sourceId) : $this->defaultUploadSource();
+            $gallery = app(GalleryService::class)->ensureRootGallery($source);
         }
 
-        $source = MediaStorageSource::findOrFail($sourceId);
-        $gallery = MediaGallery::where('id', $galleryId)
-            ->where('storage_source_id', $sourceId)
-            ->firstOrFail();
-
-        if ($source->is_read_only || ! $source->isWritable()) {
-            throw new \RuntimeException('目标存储源不可写入。');
+        if (! $source->is_enabled || ! $source->isWritable()) {
+            throw new \RuntimeException('目标存储源不可写入或已停用。');
         }
 
         $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
-        $ext = preg_replace('/[^a-z0-9]/', '', $ext) ?: 'bin';
+        $ext = substr(preg_replace('/[^a-z0-9]/', '', $ext) ?: 'bin', 0, 16);
         $mime = $file->getMimeType() ?: 'application/octet-stream';
         $type = MediaType::fromMime($mime);
-
         $ulid = strtolower((string) Str::ulid());
-        $relativePath = substr($ulid, 0, 2).'/'.substr($ulid, 2, 2).'/'.$ulid.'/original.'.$ext;
-
-        $galleryFullPath = rtrim($source->root_path, '/').'/'.ltrim($gallery->relative_path, '/');
-        $targetDir = $galleryFullPath.'/'.substr($ulid, 0, 2).'/'.substr($ulid, 2, 2).'/'.$ulid;
-
+        $stem = pathinfo(basename(str_replace('\\', '/', $file->getClientOriginalName())), PATHINFO_FILENAME);
+        $stem = trim(preg_replace('/[\x00-\x1f\x7f<>:"|?*]/u', '_', $stem), '. ');
+        $stem = mb_strcut($stem ?: 'upload', 0, 160, 'UTF-8');
+        $relativePath = $stem.'-'.$ulid.'.'.$ext;
+        $targetDir = $this->pathResolver->resolvePath($source->root_path, $gallery->relative_path);
         if (! is_dir($targetDir)) {
-            @mkdir($targetDir, 0775, true);
+            throw new \RuntimeException('图库目录不存在，请先重新扫描。');
         }
-
-        $absOriginal = $targetDir.'/original.'.$ext;
-        $file->move($targetDir, 'original.'.$ext);
+        $absOriginal = $this->pathResolver->resolvePath($source->root_path, $gallery->relative_path, $relativePath);
+        // Copy to a hidden temporary file before publishing, so scans never see partial uploads.
+        $temporary = $targetDir.'/.upload-'.$ulid;
+        $input = fopen($file->getRealPath(), 'rb');
+        $output = fopen($temporary, 'xb');
+        if ($input === false || $output === false) {
+            if (is_resource($input)) {
+                fclose($input);
+            }
+            if (is_resource($output)) {
+                fclose($output);
+            }
+            @unlink($temporary);
+            throw new \RuntimeException('无法写入图库。');
+        }
+        $copyError = null;
+        $copied = false;
+        try {
+            $copied = stream_copy_to_stream($input, $output);
+        } catch (\Throwable $e) {
+            $copyError = $e;
+        } finally {
+            fclose($input);
+            fclose($output);
+        }
+        if ($copyError !== null || $copied === false || $copied !== $file->getSize()) {
+            @unlink($temporary);
+            throw new \RuntimeException('上传文件写入不完整。', 0, $copyError);
+        }
+        if (! rename($temporary, $absOriginal)) {
+            @unlink($temporary);
+            throw new \RuntimeException('无法完成上传文件写入。');
+        }
 
         $checksum = hash_file('sha256', $absOriginal);
         $size = filesize($absOriginal);
@@ -80,7 +111,7 @@ class MediaStorageService
             ->values()
             ->all();
 
-        $resource = MediaResource::create([
+        $attributes = [
             'title' => $meta['title'],
             'description' => $meta['description'] ?? null,
             'tags' => $tags ?: null,
@@ -105,7 +136,17 @@ class MediaStorageService
             'is_system_managed' => true,
             'derivative_status' => DerivativeStatus::Pending->value,
             'derivative_attempts' => 0,
-        ]);
+        ];
+        $resource = MediaResource::firstOrCreate([
+            'gallery_id' => $gallery->id,
+            'relative_path' => $relativePath,
+        ], $attributes);
+        if (! $resource->wasRecentlyCreated) {
+            $resource->update(array_intersect_key($attributes, array_flip([
+                'title', 'description', 'tags', 'uploaded_by', 'original_name', 'is_system_managed',
+            ])));
+        }
+        $gallery->update(['media_count' => $gallery->mediaResources()->notMissing()->count()]);
 
         $this->audit->log('media.uploaded', $uploader, 'media_resource', (string) $resource->id, [
             'title' => $resource->title,
@@ -119,6 +160,28 @@ class MediaStorageService
         ProcessNewUpload::dispatch($resource->id);
 
         return $resource;
+    }
+
+    private function defaultUploadSource(): MediaStorageSource
+    {
+        $source = MediaStorageSource::enabled()->where('is_read_only', false)->orderBy('id')->get()
+            ->first(fn ($source) => $source->isWritable());
+        if ($source !== null) {
+            return $source;
+        }
+        if (MediaStorageSource::exists()) {
+            throw new \RuntimeException('没有可写的图库目录，请先由管理员配置。');
+        }
+        $root = (string) config('visionsy.media.managed_root', '/data/visionsy/managed');
+        $root = app(StorageSourceService::class)->validateAndNormalizeRootPath($root, 'local');
+        if (! is_writable($root)) {
+            throw new \RuntimeException('图库目录不可写入。');
+        }
+
+        return MediaStorageSource::create([
+            'name' => '媒体库', 'driver' => 'local', 'root_path' => $root,
+            'is_enabled' => true, 'is_read_only' => false, 'scan_recursive' => true,
+        ]);
     }
 
     /**
@@ -216,7 +279,7 @@ class MediaStorageService
         $bin = config('visionsy.media.ffmpeg_path') ?: 'ffmpeg';
 
         try {
-            $process = new \Symfony\Component\Process\Process([
+            $process = new Process([
                 $bin, '-y', '-ss', '1', '-i', $videoPath,
                 '-frames:v', '1', '-q:v', '3', $framePath,
             ]);
@@ -235,7 +298,7 @@ class MediaStorageService
     }
 
     /**
-     * 删除媒体资源：系统管理的文件物理删除，外部扫描的文件仅从索引移除。
+     * 删除媒体资源：可写图库统一删除原件和派生文件；只读目录仅移除索引。
      */
     public function delete(MediaResource $resource, User $actor): void
     {
@@ -251,7 +314,7 @@ class MediaStorageService
             return;
         }
 
-        if ($resource->is_system_managed && ! $resource->isLegacy()) {
+        if (! $resource->isLegacy()) {
             $source = $resource->storageSource;
             if ($source !== null && $source->isWritable()) {
                 $absPath = $this->pathResolver->resolveOriginalAbsolute($resource);
@@ -260,10 +323,6 @@ class MediaStorageService
                 if (is_file($absPath)) {
                     @unlink($absPath);
                 }
-
-                @rmdir(dirname($absPath));
-                @rmdir(dirname($absPath, 2));
-                @rmdir(dirname($absPath, 3));
 
                 $derivativeVariants = [
                     DerivativeVariant::Thumb,
@@ -288,11 +347,8 @@ class MediaStorageService
                     }
                 }
 
-                $derivativeBase = $this->pathResolver->getDerivativesRoot().'/'
-                    .(string) $resource->storage_source_id.'/'
-                    .(string) $resource->gallery_id.'/'
-                    .(string) $resource->id;
-                $this->deleteTree($derivativeBase);
+                $previewBase = dirname($this->pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::Thumb));
+                $this->deleteTree($previewBase);
 
                 $resource->delete();
                 $this->audit->log('media.deleted', $actor, 'media_resource', $id, ['title' => $title]);
@@ -321,7 +377,7 @@ class MediaStorageService
         $items = array_diff(scandir($dir) ?: [], ['.', '..']);
         foreach ($items as $item) {
             $path = $dir.'/'.$item;
-            is_dir($path) ? $this->deleteTree($path) : @unlink($path);
+            is_dir($path) && ! is_link($path) ? $this->deleteTree($path) : @unlink($path);
         }
 
         @rmdir($dir);

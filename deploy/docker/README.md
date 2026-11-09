@@ -1,8 +1,10 @@
 # VisionSY Docker Compose 部署（deploy/docker/）
 
-统一的开发与生产容器入口：**FrankenPHP + Docker Compose**。`app` / `worker` /
-`scheduler` 共享同一应用镜像，以不同命令运行；Windows 测试机与 Linux 生产机共用
-同一套 compose 与**相同的容器内路径**。
+生产使用一个容器：FrankenPHP、MariaDB 11.4、队列和调度器由 Supervisor 管理。
+后端通过 `127.0.0.1:3306` 连接数据库；只发布网站端口。开发环境保留独立服务及 Vite 热重载。
+
+Linux 生产服务器推荐在仓库根目录执行 `bash install.sh`，见[一键安装说明](../INSTALL-LINUX.md)。
+安装器会生成独立配置 `.env.install` 并叠加 `compose.install.yaml`，以下手工命令保留给开发与运维参考。
 
 ---
 
@@ -10,12 +12,10 @@
 
 ```text
 deploy/docker/
-├── compose.yaml          # 基础：app / worker / scheduler / db（dev+prod 共享）
+├── compose.yaml          # 开发基础：app / worker / scheduler / db
 ├── compose.dev.yaml      # 开发覆盖：源码热重载 + Vite HMR + 暴露 DB 端口
-├── compose.prod.yaml     # 生产覆盖：restart=always、不发布 DB 端口
+├── compose.prod.yaml     # 独立生产配置：单个 app 容器，内置数据库和后台任务
 ├── .env.example          # 环境模板（通用，含全部字段说明）
-├── .env.dev.example      # 开发环境示例
-├── .env.prod.example     # 生产环境示例（占位符）
 └── README.md
 # 应用镜像定义在 web/Dockerfile 与 web/docker/Caddyfile（构建上下文 = web/）
 ```
@@ -28,7 +28,7 @@ deploy/docker/
 cd deploy/docker
 
 # 1) 准备环境文件
-cp .env.dev.example .env
+cp .env.example .env
 
 # 2) 首次构建并启动（dev = 基础 + 开发覆盖）
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d --build
@@ -47,7 +47,7 @@ docker compose -f compose.yaml -f compose.dev.yaml exec app php artisan migrate
 #   Vite HMR : http://localhost:5173
 ```
 
-> 提示：命令较长，可用 VS Code 任务（见仓库 `.vscode/tasks.json`）或设置别名
+> 提示：在 Bash 中可设置别名以缩短命令：
 > `alias dcd='docker compose -f compose.yaml -f compose.dev.yaml --env-file .env'`。
 
 ---
@@ -56,16 +56,16 @@ docker compose -f compose.yaml -f compose.dev.yaml exec app php artisan migrate
 
 ```bash
 cd deploy/docker
-cp .env.prod.example .env       # 填入真实秘密（来自密钥管理），勿入库
+cp .env.example .env       # 填入真实秘密（来自密钥管理），勿入库
 
-# 构建 + 启动（prod = 基础 + 生产覆盖）
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d --build
+# 设置 APP_ENV=production、APP_DEBUG=false，填入 APP_KEY 和数据库密码。
+# 构建 + 启动（只使用独立生产文件）
+docker compose -f compose.prod.yaml --env-file .env up -d --build --wait --wait-timeout 300
 
-# 迁移（发布步骤，先备份数据库）
-docker compose -f compose.yaml -f compose.prod.yaml exec app php artisan migrate
-docker compose -f compose.yaml -f compose.prod.yaml exec app php artisan config:cache
-docker compose -f compose.yaml -f compose.prod.yaml exec app php artisan route:cache
-docker compose -f compose.yaml -f compose.prod.yaml exec app php artisan view:cache
+# 启动时自动 migrate --force，成功后才启动网站和后台任务；更新前先备份数据库。
+docker compose -f compose.prod.yaml exec app php artisan config:cache
+docker compose -f compose.prod.yaml exec app php artisan route:cache
+docker compose -f compose.prod.yaml exec app php artisan view:cache
 
 # 健康检查
 curl -fsS http://127.0.0.1:8000/up
@@ -76,49 +76,58 @@ curl -fsS http://127.0.0.1:8000/up
 
 ---
 
-## DAM 挂载（managed / sources / derivatives）
+## 媒体目录：自动扫描与上传共用
 
-容器内路径**固定**（Windows 与 Linux 一致）：
-
-| 容器路径 | 读写 | 说明 |
-| --- | --- | --- |
-| `/data/visionsy/managed` | 可读写 | VisionSY 管理的新上传原件 |
-| `/data/visionsy/sources` | **只读**（`:ro`） | 外部图库来源原件 |
-| `/data/visionsy/derivatives` | worker 可写 | 缩略图 / 预览 / 水印派生 |
-
-宿主机路径由 `.env` 的 `DAM_HOST_*` 提供，**仅此处**因平台而异：
+宿主机先挂载 SMB/NFS，再设置 `.env`：
 
 ```dotenv
-# Windows（Docker Desktop，正斜杠）
-DAM_HOST_MANAGED=D:/visionsy/managed
-DAM_HOST_SOURCES=D:/visionsy/sources
-DAM_HOST_DERIVATIVES=D:/visionsy/derivatives
-
-# Linux
-DAM_HOST_MANAGED=/srv/visionsy/managed
-DAM_HOST_SOURCES=/srv/visionsy/sources
-DAM_HOST_DERIVATIVES=/srv/visionsy/derivatives
-
-# 或相对路径（相对本目录，开箱即用；数据落在 deploy/docker/data/，已被 .gitignore）
-DAM_HOST_MANAGED=./data/managed
-DAM_HOST_SOURCES=./data/sources
-DAM_HOST_DERIVATIVES=./data/derivatives
+# 相对路径（项目目录内，也可以位于已经挂载的 NAS 共享上）
+DAM_HOST_MANAGED=./data/media
+# 或宿主机的正式 NAS 挂载路径
+# DAM_HOST_MANAGED=/mnt/nas/photos
 ```
 
-> SMB/NFS 由**宿主机**挂载到上述目录，应用容器不负责挂载、不持有凭据。
-> 数据库与业务配置只保存**容器内路径**（如 `/data/visionsy/sources`），
-> 不保存宿主机盘符或绝对路径。`MEDIA_ALLOWED_ROOTS` 同理使用容器内路径。
+Compose 将这个目录读写挂载到 `/data/visionsy/managed`。这是兼容已有配置的容器内路径名，已有文件和新上传文件共用该目录，不再区分受管/外部图库。
+
+初始化默认目录：
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec app php artisan media:init-managed-source
+```
+
+调度器每分钟发现并重新扫描已启用的媒体目录。根目录直接存放的文件归属根图库；一级子目录作为其他图库，按配置递归扫描子目录。网站上传可以选择任意可写图库，默认写入根图库；文件名保留可辨认的原名并附加唯一后缀，同名文件不会覆盖。
+
+```text
+media/
+├── 原有照片.jpg
+├── 网页上传-唯一编号.jpg
+├── preview/
+│   └── 素材ID/
+│       ├── thumb.jpg
+│       ├── large.jpg
+│       ├── watermarked_jpeg.jpg
+│       └── watermarked_png.png
+└── 活动相册/
+    ├── 照片.jpg
+    └── preview/
+```
+
+`preview/`、旧 `_visionsy/`、隐藏目录及符号链接会在遍历时跳过。原件变化后更新索引和预览，原件消失时标记 Missing。授权删除对扫描文件和上传文件使用同样的目录写权限规则。
+
+新预览均写入图库内 `preview/`，因此 app/worker 需要对该目录有写权限。旧独立派生目录可通过自定义挂载和 `MEDIA_DERIVATIVES_ROOT` 保持读取兼容；新部署不需要独立 derivatives 或 sources 挂载。
+
+更多说明见 [统一媒体库](../../docs/architecture/media-library.md)。
 
 ---
 
-## 服务与运行方式
+## 开发服务与运行方式
 
 | 服务 | 镜像 | 命令 | 端口 |
 | --- | --- | --- | --- |
 | `app` | `visionsy-app` | FrankenPHP（`web/docker/Caddyfile`，根 `/app/public`） | `${APP_PORT}:80` |
 | `worker` | `visionsy-app` | `php artisan queue:work --sleep=3 --tries=3 --timeout=3600 --max-time=3600 --max-jobs=1000` | 无 |
 | `scheduler` | `visionsy-app` | `php artisan schedule:work` | 无 |
-| `db` | `mariadb:11.4` | MariaDB（命名卷 `db_data`，healthcheck） | dev 暴露 `${DB_HOST_PORT}`；prod 不暴露 |
+| `db` | `mariadb:11.4` | MariaDB（命名卷 `db_data`，healthcheck） | 开发暴露 `${DB_HOST_PORT}` |
 | `vite` | `node:22-alpine` | `npm run dev -- --host 0.0.0.0`（仅 dev） | `${VITE_PORT}:5173` |
 
 队列约定：`worker --timeout=3600` **<** database 队列 `retry_after`（`DB_QUEUE_RETRY_AFTER=3700`）。
@@ -130,10 +139,10 @@ DAM_HOST_DERIVATIVES=./data/derivatives
 
 | 卷 | 内容 |
 | --- | --- |
-| `storage` | Laravel `storage/`（app/worker/scheduler 共享一致） |
+| `storage` | Laravel `storage/`（开发多服务共享；生产容器内共用） |
 | `bootstrap_cache` | `bootstrap/cache/`（共享一致） |
 | `db_data` | MariaDB 数据 |
-| DAM bind | `DAM_HOST_*` → `/data/visionsy/*` |
+| 媒体目录 | `DAM_HOST_MANAGED` → `/data/visionsy/managed`，包含原件及图库内 `preview/` |
 
 开发覆盖另用匿名卷保护 `/app/vendor`、`/app/node_modules`（源码绑定挂载时不被本机产物覆盖）。
 
@@ -144,7 +153,7 @@ DAM_HOST_DERIVATIVES=./data/derivatives
 - Docker Desktop 需在 Settings → Resources 中共享 `DAM_HOST_*` 所在盘符。
 - 绑定挂载性能与文件事件较弱：Vite 已启用 `CHOKIDAR_USEPOLLING=true`。
 - 源码绑定挂载下，`vendor` / `node_modules` 由匿名卷提供（Linux 兼容），无需本机 Composer。
-- 任务入口不依赖 bash 特有命令（见 `.vscode/tasks.json`，均为 `docker compose` 调用）。
+- 部署与测试脚本通过 Node 调用 `docker compose`，可直接从终端运行。
 
 ---
 
@@ -163,7 +172,7 @@ DAM_HOST_DERIVATIVES=./data/derivatives
 ```bash
 # 组合配置校验
 docker compose -f compose.yaml -f compose.dev.yaml  --env-file .env config
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env config
+docker compose -f compose.prod.yaml --env-file .env config
 
 # 构建
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env build
@@ -305,3 +314,17 @@ sudo ./deploy-docker.sh status   # 服务状态
 ```
 
 回滚：单机部署无法零停机，需维护窗口。先从备份恢复数据库，再切换到旧镜像/commit。
+
+## 单容器生产运维
+
+生产命令统一使用 `docker compose -f compose.prod.yaml --env-file .env`；
+一键安装的配置和项目名用法见 [Linux 安装说明](../INSTALL-LINUX.md)。
+上面的独立 `worker`、`scheduler`、`db` 服务表及其日志命令仅适用于开发环境。
+生产用 `exec app supervisorctl -c /etc/visionsy/supervisord.conf status` 查看内部进程，
+用 `logs app` 查看所有日志。数据库备份也改为在 `app` 容器内执行 `mariadb-dump`。
+
+首次启动初始化数据库，随后只执行增量迁移，不自动 seed，不清空数据。
+Supervisor 先停止后台任务和网站，再停止数据库；长任务停止宽限最长 65 分钟。
+数据库、Laravel storage 和启动缓存分别使用持久卷，媒体使用宿主机目录。
+生产不再运行独立内网探测容器；需要内网识别时配置已有的内网探测 URL。
+从多容器升级请使用安装器以便先备份、停止旧数据库并清理旧容器，避免两个数据库进程同时打开同一数据卷。

@@ -1,8 +1,13 @@
+> 2026-11-10 部署更新：生产改为独立 `compose.prod.yaml`，仅一个容器，内部运行
+> FrankenPHP、MariaDB 11.4、队列和调度器；Supervisor 管理生命周期。
+> 数据库监听 `127.0.0.1:3306`，启动时先执行增量迁移再启动应用；持久卷名称沿用旧部署。
+> 下文涉及多服务 Compose 和显式迁移的描述对应开发环境及旧部署；最新生产操作见 `deploy/INSTALL-LINUX.md`。
+
 # VisionSY 部署与 DAM 存储架构
 
 > 长期架构文档。保存已确认的长期设计、当前与目标组件图、边界与职责划分。
 > 实施进度与阶段记录见 [`../implementation/deployment-modernization-status.md`](../implementation/deployment-modernization-status.md)。
-> 最后更新：2026-07-23（会话 C，阶段 6–7）。
+> 最后更新：2026-10-25（统一媒体目录与图库内 preview）。
 
 ---
 
@@ -42,7 +47,7 @@ VisionSY 的默认产品形态是：
         │  db (MariaDB)       │                      │  共享存储（卷/挂载）  │
         │  固定版本            │                      │  storage/            │
         │  独立 volume         │                      │  bootstrap/cache     │
-        │  生产不发布公网端口   │                      │  DAM 三目录           │
+        │  生产不发布公网端口   │                      │  统一媒体目录           │
         │  healthcheck        │                      └──────────────────────┘
         └─────────────────────┘
 
@@ -70,7 +75,7 @@ VisionSY 的默认产品形态是：
 | 队列 | database（worker 服务） | database（worker 服务，长驻） |
 | `APP_ENV` | `local` | `production` |
 | `APP_DEBUG` | `true` | `false` |
-| DAM sources 挂载 | 宿主机 bind，可读写测试素材 | 宿主机挂载，默认只读 |
+| 媒体目录挂载 | 可读写，扫描和上传共用 | 可读写，图库内 preview 保存生成文件 |
 | 迁移 | 显式任务/命令 | 单独、可观察的发布步骤 |
 | 秘密 | 占位符 `.env`（不入库） | 从密钥管理/环境变量注入 |
 
@@ -94,9 +99,7 @@ VisionSY 的默认产品形态是：
 | --- | --- | --- | --- |
 | `/app/storage` | named volume | app/worker/scheduler 一致 | Laravel storage（日志/缓存/会话/受保护文件） |
 | `/app/bootstrap/cache` | named volume | app/worker/scheduler 一致 | 启动缓存 |
-| `/data/visionsy/managed` | bind（宿主机） | 可读写 | VisionSY 管理的新上传原件 |
-| `/data/visionsy/sources` | bind（宿主机） | **默认只读** | 外部图库来源原件 |
-| `/data/visionsy/derivatives` | bind（宿主机） | worker 可写 | 缩略图/预览/水印派生 |
+| `/data/visionsy/managed` | bind（宿主机） | 可读写 | 已有原件、上传文件及图库内 preview |
 | `db` 数据 | named volume | 仅 db | 数据库持久化 |
 
 > 应用容器根目录为 `/app`（FrankenPHP 默认 Web 根 `/app/public`）。
@@ -104,29 +107,20 @@ VisionSY 的默认产品形态是：
 >
 > ```text
 > /data/visionsy/managed
-> /data/visionsy/sources
-> /data/visionsy/derivatives
 > ```
 
 ---
 
-## 6. DAM 三目录职责
+## 6. 统一媒体目录职责
 
-| 目录 | 职责 | 读写 | 约束 |
-| --- | --- | --- | --- |
-| `managed` | VisionSY 管理的新上传原件 | 可读写 | 属于明确存储源与图库；可物理删除（经授权/边界校验/审计） |
-| `sources` | 宿主机挂载的外部图库来源 | **默认只读** | 扫描/索引/派生不得修改原件；派生不要求来源可写 |
-| `derivatives` | 缩略图、预览图、水印图 | worker 可写 | 可重建数据；临时文件 + 原子替换写入 |
+目录扫描与网页上传共用同一套索引和后台处理。登记目录后每分钟自动扫描，图库内 `preview/{resource_id}/` 保存缩略图、预览和水印。详细规则见 [统一媒体库](media-library.md)。
 
-职责边界：
-
-- 新上传资源必须属于明确的存储源和图库，不再新增无归属 legacy 资源。
-- 历史 legacy 资源保持可读，直到存在经验证的迁移命令与回滚方案。
-- 派生路径使用稳定标识构造（storage source / gallery / resource id）。
-- 原件改名/移动/缺失时，只标记 `missing`，不误删无关资源、不越界操作。
-
-> 注：当前多存储源实现把派生文件写入图库内 `_visionsy/` 子目录（`MediaGallery::derivativeRootPath()`）。
-> 目标方向是把派生文件集中到独立 `derivatives` 根。该迁移属于后续阶段（路径重构），会话 A 不实施，仅在此记录。
+- 根目录文件归属根图库；一级子目录自动发现为图库，图库内可递归扫描。
+- 所有可写图库都支持上传，能力不再取决于 `is_managed` 或文件来源标记。
+- 只读属性控制原件写入，生成新预览仍需要图库内 preview 的写权限。
+- 扫描剪枝排除 preview、旧 _visionsy、隐藏目录和符号链接。
+- 旧独立派生目录及 _visionsy 缓存保留读取兼容，新预览统一写入 preview。
+- 原件移动或缺失只标记 Missing，不自动删除其他文件。
 
 ---
 
@@ -201,7 +195,7 @@ Laravel、FrankenPHP 和普通 Worker **不负责挂载**：
 | 0 | 状态核验与架构基线（本文档 + 状态文档） | A |
 | 1 | DAM 数据正确性与 Queue 基础修复（身份/Missing/锁/timeout/测试/迁移） | A |
 | 2 | Docker Compose 与 FrankenPHP（Dockerfile/compose/持久化/DB/运行方式/Windows/示例） | A |
-| 3 | 统一日常开发与生产运维入口（tasks.json/deploy 脚本/文档/README） | A |
+| 3 | 统一日常开发与生产运维入口（部署脚本/文档/README） | A |
 | 4 | DAM 路径重构：派生文件迁移到独立 `derivatives` 根、managed 上传归属 | B |
 | 5 | legacy 资源迁移命令与回滚、生产一致性验证（MariaDB 全量测试） | B/C |
 | 6 | 生产发布演练、备份/恢复、监控与告警 | C |

@@ -1,15 +1,15 @@
 # ==================================================================
-# VisionSY 基础 Compose（dev 与 prod 共享）
+# VisionSY 开发基础 Compose（生产独立使用 compose.prod.yaml）
 #
 # 用法：
 #   开发：docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
-#   生产：docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d
+#   生产：docker compose -f compose.prod.yaml --env-file .env up -d
 #
 # 约定：
 #   - app / worker / scheduler 共享同一镜像（x-app 锚点），以不同命令运行。
-#   - 容器内 DAM 路径固定为 /data/visionsy/{managed,sources,derivatives}；
+#   - 统一媒体目录挂载到 /data/visionsy/managed；每个图库的 preview/ 保存派生文件。
 #     宿主机路径由 .env 的 DAM_HOST_* 提供（Windows 与 Linux 仅此处不同）。
-#   - sources 默认只读（:ro），derivatives 由 worker 可写。
+#   - 同一媒体目录支持自动扫描和上传，app/worker 需要写入 preview/ 的权限。
 #   - 容器启动不自动 migrate/seed；迁移是单独步骤（见 README）。
 #   - database 队列 retry_after(3700) > worker --timeout(3600)。
 # ==================================================================
@@ -20,6 +20,7 @@ x-app: &app
   build:
     context: ../../web
     dockerfile: Dockerfile
+    target: runtime
   image: visionsy-app:${APP_IMAGE_TAG:-latest}
   env_file:
     - .env
@@ -27,10 +28,8 @@ x-app: &app
     # Laravel storage 与启动缓存在 app/worker/scheduler 间一致（命名卷）
     - storage:/app/storage
     - bootstrap_cache:/app/bootstrap/cache
-    # DAM 三目录：宿主机路径 -> 固定容器路径
-    - ${DAM_HOST_MANAGED}:/data/visionsy/managed
-    - ${DAM_HOST_SOURCES}:/data/visionsy/sources:ro
-    - ${DAM_HOST_DERIVATIVES}:/data/visionsy/derivatives
+    # 宿主机可先挂载 SMB/NFS，再把媒体目录映射进容器。
+    - ${DAM_HOST_MANAGED:-./data/media}:/data/visionsy/managed
   depends_on:
     db:
       condition: service_healthy

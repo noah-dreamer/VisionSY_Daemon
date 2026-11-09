@@ -14,7 +14,24 @@ class UserGroupSeeder extends Seeder
 {
     public function run(): void
     {
-        $groups = [
+        foreach (self::defaults() as $attrs) {
+            UserGroup::updateOrCreate(['name' => $attrs['name']], $attrs);
+        }
+
+        // 演示分组：宣传部成员 → 原图供稿组；普通学生 → 普通成员组
+        User::where('email', 'media@example.com')->update([
+            'user_group_id' => UserGroup::where('name', '原图供稿组')->value('id'),
+        ]);
+        User::where('email', 'student@student.example.com')->update([
+            'user_group_id' => UserGroup::where('name', '普通成员组')->value('id'),
+        ]);
+
+        $this->command?->info('默认用户组已创建（4 组，含注册默认组与受限演示组）。');
+    }
+
+    public static function defaults(): array
+    {
+        return [
             [
                 'name' => '资源管理组',
                 'description' => '对应 RS Archivists：管理全部素材（编辑/归档/删除）+ 原图下载 + 上传',
@@ -44,18 +61,5 @@ class UserGroupSeeder extends Seeder
             ],
         ];
 
-        foreach ($groups as $attrs) {
-            UserGroup::updateOrCreate(['name' => $attrs['name']], $attrs);
-        }
-
-        // 演示分组：宣传部成员 → 原图供稿组；普通学生 → 普通成员组
-        User::where('email', 'media@example.com')->update([
-            'user_group_id' => UserGroup::where('name', '原图供稿组')->value('id'),
-        ]);
-        User::where('email', 'student@student.example.com')->update([
-            'user_group_id' => UserGroup::where('name', '普通成员组')->value('id'),
-        ]);
-
-        $this->command?->info('默认用户组已创建（4 组，含注册默认组与受限演示组）。');
     }
 }

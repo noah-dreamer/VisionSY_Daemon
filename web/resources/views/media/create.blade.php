@@ -14,21 +14,21 @@
             <div class="card p-6 sm:p-8">
                 <h1 class="h-page text-ink-950">上传素材</h1>
                 <p class="mt-2 prose-muted">
-                    原图入库后自动生成带水印缩略图与预览图；原图仅授权用户组可下载。单文件上限 {{ $maxUploadMb }} MB。
+                    上传文件与目录中已有的素材统一入库，后台自动生成预览；原图仅授权用户组可下载。单文件上限 {{ $maxUploadMb }} MB。
                 </p>
 
                 <form method="POST" action="{{ route('media.store') }}" enctype="multipart/form-data" class="mt-7 space-y-5"
-                      x-data="mediaUpload()" @submit="submitting = true">
+                      x-data="{ ...mediaUpload(), selectedSource: @js((string) old('storage_source_id', $sources->first()?->id)) }" @submit="submitting = true">
                     @csrf
 
                     @if($sources->isNotEmpty() && $galleries->isNotEmpty())
                     <div>
                         <label for="storage_source_id" class="form-label">存储源</label>
                         <select id="storage_source_id" name="storage_source_id"
-                                class="form-input">
+                                class="form-input" required x-model="selectedSource" @change="$refs.gallery.value = ''">
                             <option value="">-- 请选择 --</option>
                             @foreach($sources as $src)
-                                <option value="{{ $src->id }}" {{ old('storage_source_id') == $src->id ? 'selected' : '' }}>
+                                <option value="{{ $src->id }}" {{ old('storage_source_id', $sources->first()?->id) == $src->id ? 'selected' : '' }}>
                                     {{ $src->name }}
                                 </option>
                             @endforeach
@@ -38,11 +38,11 @@
 
                     <div>
                         <label for="gallery_id" class="form-label">图库</label>
-                        <select id="gallery_id" name="gallery_id"
-                                class="form-input">
+                        <select id="gallery_id" name="gallery_id" x-ref="gallery"
+                                class="form-input" required>
                             <option value="">-- 请选择 --</option>
                             @foreach($galleries as $gal)
-                                <option value="{{ $gal->id }}" data-source="{{ $gal->storage_source_id }}"
+                                <option value="{{ $gal->id }}" data-source="{{ $gal->storage_source_id }}" x-show="selectedSource == {{ $gal->storage_source_id }}"
                                     {{ old('gallery_id') == $gal->id ? 'selected' : '' }}>
                                     {{ $gal->name }} ({{ $gal->storageSource?->name ?? '#' . $gal->storage_source_id }})
                                 </option>
@@ -90,7 +90,7 @@
                              hint="最多 12 个标签，用于检索。" />
 
                     <button type="submit" class="btn-primary w-full" :disabled="submitting">
-                        <span x-show="!submitting">上传并生成水印预览</span>
+                        <span x-show="!submitting">上传到图库</span>
                         <span x-show="submitting" x-cloak class="inline-flex items-center gap-2">
                             <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"/></svg>
                             上传中，请稍候…

@@ -3,7 +3,7 @@
  * VisionSY 开发环境初始化（跨平台，Node 实现，不依赖 bash/cmd 特有语法）。
  *
  * 步骤（任一在重试耗尽后失败才退出）：
- *   1. 若 .env 不存在，从 .env.dev.example 复制（绝不覆盖已有 .env）。
+ *   1. 若 .env 不存在，从 .env.example 复制（绝不覆盖已有 .env）。
  *   2. 构建应用镜像（含前端资源）。网络敏感，失败自动重试。
  *   3. 启动服务（app/worker/scheduler/db）。网络敏感（可能拉取镜像），失败自动重试。
  *   4. 若 APP_KEY 为空或占位符，生成并写回 .env（key:generate --show，不改容器内文件），
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ENV_FILE = join(here, '.env');
-const ENV_EXAMPLE = join(here, '.env.dev.example');
+const ENV_EXAMPLE = join(here, '.env.example');
 
 const COMPOSE_ARGS = ['-f', 'compose.yaml', '-f', 'compose.dev.yaml', '--env-file', '.env'];
 
@@ -67,11 +67,11 @@ function composeCapture(args) {
 // 1) 准备 .env（不覆盖）
 if (!existsSync(ENV_FILE)) {
     if (!existsSync(ENV_EXAMPLE)) {
-        console.error('[init] 缺少 .env.dev.example，无法初始化 .env。');
+        console.error('[init] 缺少 .env.example，无法初始化 .env。');
         process.exit(1);
     }
     copyFileSync(ENV_EXAMPLE, ENV_FILE);
-    console.log('[init] 已从 .env.dev.example 创建 .env（未覆盖任何已有文件）。');
+    console.log('[init] 已从 .env.example 创建 .env（未覆盖任何已有文件）。');
 } else {
     console.log('[init] .env 已存在，保持不变。');
 }
@@ -118,6 +118,6 @@ compose(['exec', '-T', 'app', 'php', 'artisan', 'storage:link']);
 console.log('\n[init] 完成。');
 console.log('  Web      : http://localhost:8000');
 console.log('  Vite HMR : http://localhost:5173');
-console.log('  如需演示数据（仅可丢弃的开发库）：执行任务「VisionSY: ⚠ 重建开发数据库」。');
-console.log('  只是管理员登不进去（不想清空数据）：执行任务「VisionSY: 创建/修复管理员账号」。');
-console.log('  运行测试：执行任务「VisionSY: 测试」（node deploy/docker/test.mjs，隔离测试库）。');
+console.log('  创建/修复管理员（在 deploy/docker 目录运行）：');
+console.log('    docker compose -f compose.yaml -f compose.dev.yaml --env-file .env exec app php artisan visionsy:ensure-admin admin@example.com');
+console.log('  运行测试（在仓库根目录运行）：node deploy/docker/test.mjs（隔离测试库）。');

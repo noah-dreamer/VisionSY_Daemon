@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\MediaResource;
 use App\Models\User;
+use App\Services\Media\DerivativeVariant;
+use App\Services\Media\PathResolverService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -47,9 +49,10 @@ class MediaLibraryTest extends TestCase
 
         $this->assertTrue($resource->has_thumb);
         $this->assertTrue($resource->has_preview);
-        Storage::disk('local')->assertExists($resource->originalRelativePath());
-        Storage::disk('local')->assertExists($resource->thumbRelativePath());
-        Storage::disk('local')->assertExists($resource->previewRelativePath());
+        $resolver = app(PathResolverService::class);
+        $this->assertFileExists($resolver->resolveOriginalAbsolute($resource));
+        $this->assertFileExists($resolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Thumb));
+        $this->assertFileExists($resolver->resolveDerivativeAbsolute($resource, DerivativeVariant::Large));
         $this->assertDatabaseHas('audit_logs', ['action' => 'media.uploaded']);
     }
 
@@ -144,7 +147,7 @@ class MediaLibraryTest extends TestCase
 
         auth()->logout();
 
-        $this->get(route('media.index'))->assertOk()->assertSee('校运会开幕式');
+        $this->get(route('media.index', ['view' => 'photos']))->assertOk()->assertSee('校运会开幕式');
         $this->get(route('media.thumb', $resource))->assertOk();
         $this->get(route('media.preview', $resource))->assertRedirect(route('login'));
     }
@@ -174,7 +177,7 @@ class MediaLibraryTest extends TestCase
 
         $student = User::factory()->create();
         $this->actingAs($student)->get(route('media.show', $resource))->assertForbidden();
-        $this->actingAs($student)->get(route('media.index'))->assertDontSee('校运会开幕式');
+        $this->actingAs($student)->get(route('media.index', ['view' => 'photos']))->assertDontSee('校运会开幕式');
     }
 
     /* ---------------- 管理 ---------------- */
@@ -191,12 +194,12 @@ class MediaLibraryTest extends TestCase
 
         $this->assertSame('改名后的素材', $resource->fresh()->title);
 
-        $dir = $resource->storage_dir;
+        $original = app(PathResolverService::class)->resolveOriginalAbsolute($resource);
         $this->actingAs($member)->delete(route('media.destroy', $resource))
             ->assertRedirect(route('media.index'));
 
         $this->assertDatabaseMissing('media_resources', ['id' => $resource->id]);
-        Storage::disk('local')->assertMissing("media/{$dir}/original.jpg");
+        $this->assertFileDoesNotExist($original);
     }
 
     public function test_other_member_cannot_manage_someone_elses_resource(): void

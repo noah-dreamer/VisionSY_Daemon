@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\StorageSourceType;
 use App\Models\MediaStorageSource;
+use App\Services\Media\GalleryService;
 use Illuminate\Console\Command;
 
 class InitManagedSourceCommand extends Command
@@ -12,20 +13,20 @@ class InitManagedSourceCommand extends Command
                             {--root= : managed 根路径，默认从配置读取}
                             {--name= : 存储源名称，默认 "VisionSY Managed"}';
 
-    protected $description = '初始化默认 managed 存储源（幂等）。';
+    protected $description = '初始化默认媒体目录（幂等，扫描和上传共用）。';
 
     public function handle(): int
     {
-        $name = $this->option('name') ?: 'VisionSY Managed';
+        $name = $this->option('name') ?: '媒体库';
         $root = $this->option('root') ?: config('visionsy.media.managed_root', '/data/visionsy/managed');
 
         $existing = MediaStorageSource::query()
-            ->where('is_managed', true)
             ->where('root_path', $root)
             ->first();
 
         if ($existing) {
-            $this->info("Managed 存储源已存在: ID={$existing->id}, name={$existing->name}");
+            app(GalleryService::class)->ensureRootGallery($existing);
+            $this->info("媒体目录已存在: ID={$existing->id}, name={$existing->name}");
 
             return self::SUCCESS;
         }
@@ -42,11 +43,12 @@ class InitManagedSourceCommand extends Command
             'is_enabled' => true,
             'is_read_only' => false,
             'is_managed' => true,
-            'scan_recursive' => false,
+            'scan_recursive' => true,
             'created_by' => null,
         ]);
+        app(GalleryService::class)->ensureRootGallery($source);
 
-        $this->info("Managed 存储源已创建: ID={$source->id}, name={$name}, root={$root}");
+        $this->info("媒体目录已创建: ID={$source->id}, name={$name}, root={$root}");
 
         return self::SUCCESS;
     }

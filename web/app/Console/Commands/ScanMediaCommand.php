@@ -6,8 +6,8 @@ use App\Jobs\Media\DiscoverMediaGalleries;
 use App\Jobs\Media\ScanMediaGallery;
 use App\Models\MediaGallery;
 use App\Models\MediaStorageSource;
+use App\Services\Media\GalleryService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Bus;
 
 class ScanMediaCommand extends Command
 {
@@ -50,7 +50,7 @@ class ScanMediaCommand extends Command
         $this->info("开始处理存储源: {$source->name}");
 
         if ($discoverOnly) {
-            $galleryService = app(\App\Services\Media\GalleryService::class);
+            $galleryService = app(GalleryService::class);
             $found = $galleryService->discoverGalleries($source);
             $this->info("发现 {$found} 个新图库。");
 
@@ -101,18 +101,18 @@ class ScanMediaCommand extends Command
         $jobs = [];
         foreach ($sources as $source) {
             if ($discoverOnly) {
-                $galleryService = app(\App\Services\Media\GalleryService::class);
+                $galleryService = app(GalleryService::class);
                 $found = $galleryService->discoverGalleries($source);
                 $this->info("存储源 {$source->name}: 发现 {$found} 个新图库。");
             } else {
-                $jobs[] = new DiscoverMediaGalleries($source->id);
+                $jobs[] = $source->id;
             }
         }
 
         if ($jobs !== []) {
-            Bus::batch($jobs)
-                ->name('Media Scan - All Sources')
-                ->dispatch();
+            foreach ($jobs as $id) {
+                DiscoverMediaGalleries::dispatch($id);
+            }
 
             $this->info(count($jobs).' 个存储源扫描任务已派发。');
         }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MediaGallery;
 use App\Models\MediaResource;
 use App\Models\MediaStorageSource;
+use App\Services\Media\GalleryService;
 use App\Services\Media\MediaStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,21 +15,24 @@ use Illuminate\View\View;
 
 class MediaUploadController extends Controller
 {
-    public function create(): View
+    public function create(GalleryService $galleryService): View
     {
         Gate::authorize('create', MediaResource::class);
 
         $sources = MediaStorageSource::query()
             ->where('is_enabled', true)
-            ->where('is_managed', true)
-            ->get();
+            ->where('is_read_only', false)
+            ->get()->filter(fn ($source) => $source->isWritable());
+
+        foreach ($sources as $source) {
+            $galleryService->ensureRootGallery($source);
+        }
 
         $galleries = collect();
         if ($sources->isNotEmpty()) {
             $sourceIds = $sources->pluck('id');
             $galleries = MediaGallery::query()
                 ->whereIn('storage_source_id', $sourceIds)
-                ->where('is_managed', true)
                 ->orderBy('name')
                 ->get();
         }
@@ -71,14 +75,18 @@ class MediaUploadController extends Controller
             ]);
         }
 
-        $resource = $storage->store($validated['file'], [
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'tags' => $validated['tags'] ?? null,
-            'storage_source_id' => $validated['storage_source_id'] ?? null,
-            'gallery_id' => $validated['gallery_id'] ?? null,
-        ], $request->user());
+        try {
+            $resource = $storage->store($validated['file'], [
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'tags' => $validated['tags'] ?? null,
+                'storage_source_id' => $validated['storage_source_id'] ?? null,
+                'gallery_id' => $validated['gallery_id'] ?? null,
+            ], $request->user());
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->withErrors(['file' => $e->getMessage()]);
+        }
 
-        return redirect()->route('media.show', $resource)->with('status', '素材上传成功，已自动生成带水印预览。');
+        return redirect()->route('media.show', $resource)->with('status', '素材上传成功，预览将在后台生成。');
     }
 }

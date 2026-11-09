@@ -37,7 +37,6 @@ class StorageSourceController extends Controller
             'root_path' => ['required', 'string', 'max:1024'],
             'is_enabled' => ['boolean'],
             'is_writable' => ['boolean'],
-            'is_managed' => ['boolean'],
             'scan_recursive' => ['boolean'],
             'auto_mount' => ['boolean'],
             'smb_server' => ['nullable', 'string', 'max:255'],
@@ -79,7 +78,6 @@ class StorageSourceController extends Controller
             'root_path' => ['required', 'string', 'max:1024'],
             'is_enabled' => ['boolean'],
             'is_writable' => ['boolean'],
-            'is_managed' => ['boolean'],
             'scan_recursive' => ['boolean'],
         ]);
 
@@ -122,7 +120,6 @@ class StorageSourceController extends Controller
 
     public function scan(Request $request, MediaStorageSource $storageSource, AuditLogger $audit): RedirectResponse
     {
-        \App\Jobs\Media\DiscoverMediaGalleries::dispatch($storageSource->id);
 
         $audit->log('storage_source.scan_triggered', $request->user(), 'media_storage_source', (string) $storageSource->id);
 

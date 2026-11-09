@@ -17,3 +17,7 @@ docker/data/
 docker/*.env
 !docker/*.env.example
 !docker/.env.example
+
+# Linux installer state and initial credentials
+docker/.install/
+__pycache__/

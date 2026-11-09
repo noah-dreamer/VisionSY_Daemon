@@ -3,14 +3,18 @@
 namespace Tests\Feature;
 
 use App\Enums\MediaStatus;
+use App\Enums\MediaType;
 use App\Enums\StorageSourceType;
 use App\Models\MediaGallery;
 use App\Models\MediaResource;
 use App\Models\MediaStorageSource;
+use App\Models\User;
 use App\Services\Media\DerivativeVariant;
+use App\Services\Media\MediaStorageService;
 use App\Services\Media\PathResolverService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MediaPathRefactoringTest extends TestCase
@@ -18,10 +22,15 @@ class MediaPathRefactoringTest extends TestCase
     use RefreshDatabase;
 
     private MediaStorageSource $managedSource;
+
     private MediaStorageSource $externalSource;
+
     private MediaGallery $managedGallery;
+
     private MediaGallery $externalGallery;
+
     private string $managedRoot;
+
     private string $derivativesRoot;
 
     private function normalizedManagedRoot(): string
@@ -38,6 +47,7 @@ class MediaPathRefactoringTest extends TestCase
 
         config(['visionsy.media.managed_root' => $this->managedRoot]);
         config(['visionsy.media.derivatives_root' => $this->derivativesRoot]);
+        config(['visionsy.media.allowed_roots' => [$this->managedRoot]]);
 
         @mkdir($this->managedRoot, 0775, true);
         @mkdir($this->derivativesRoot, 0775, true);
@@ -106,7 +116,7 @@ class MediaPathRefactoringTest extends TestCase
     {
         $resource = MediaResource::create([
             'title' => 'Legacy Resource',
-            'type' => \App\Enums\MediaType::Image,
+            'type' => MediaType::Image,
             'status' => MediaStatus::Active,
             'index_status' => MediaStatus::Active,
             'original_name' => 'legacy.jpg',
@@ -120,7 +130,7 @@ class MediaPathRefactoringTest extends TestCase
             'is_system_managed' => true,
         ]);
 
-        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        $disk = Storage::disk('local');
         $dir = dirname($disk->path($resource->originalRelativePath()));
         @mkdir($dir, 0775, true);
         file_put_contents($disk->path($resource->originalRelativePath()), 'legacy-content');
@@ -140,7 +150,7 @@ class MediaPathRefactoringTest extends TestCase
 
         return MediaResource::create([
             'title' => $title,
-            'type' => \App\Enums\MediaType::Image,
+            'type' => MediaType::Image,
             'status' => MediaStatus::Active,
             'index_status' => MediaStatus::Active,
             'original_name' => 'managed.jpg',
@@ -163,13 +173,13 @@ class MediaPathRefactoringTest extends TestCase
     public function new_upload_has_source_and_gallery(): void
     {
         $file = UploadedFile::fake()->image('test.jpg');
-        $storage = app(\App\Services\Media\MediaStorageService::class);
+        $storage = app(MediaStorageService::class);
 
         $resource = $storage->store($file, [
             'title' => 'Test Upload',
             'storage_source_id' => $this->managedSource->id,
             'gallery_id' => $this->managedGallery->id,
-        ], \App\Models\User::factory()->create());
+        ], User::factory()->create());
 
         $this->assertNotNull($resource->storage_source_id);
         $this->assertNotNull($resource->gallery_id);
@@ -199,19 +209,16 @@ class MediaPathRefactoringTest extends TestCase
     }
 
     /** @test */
-    public function derivative_written_to_independent_root(): void
+    public function derivative_written_under_gallery_preview(): void
     {
         $resource = $this->createManagedResource();
         $pathResolver = app(PathResolverService::class);
 
         $newPath = $pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::Thumb);
-        $this->assertStringStartsWith(str_replace('\\', '/', $this->derivativesRoot), str_replace('\\', '/', $newPath));
+        $this->assertStringStartsWith($resource->gallery->fullPath().'/preview/', str_replace('\\', '/', $newPath));
         $this->assertStringNotContainsString('_visionsy', $newPath);
 
-        $expectedPrefix = str_replace('\\', '/', $this->derivativesRoot).'/'
-            .$resource->storage_source_id.'/'
-            .$resource->gallery_id.'/'
-            .$resource->id.'/';
+        $expectedPrefix = $resource->gallery->fullPath().'/preview/'.$resource->id.'/';
         $this->assertStringStartsWith($expectedPrefix, $newPath);
     }
 
@@ -279,7 +286,7 @@ class MediaPathRefactoringTest extends TestCase
         $r1 = $this->createManagedResource('Same Name G1');
         $r2 = MediaResource::create([
             'title' => 'Same Name G2',
-            'type' => \App\Enums\MediaType::Image,
+            'type' => MediaType::Image,
             'status' => MediaStatus::Active,
             'index_status' => MediaStatus::Active,
             'original_name' => 'same.jpg',
@@ -305,7 +312,7 @@ class MediaPathRefactoringTest extends TestCase
     {
         $roots = config('visionsy.media.allowed_roots');
         $this->assertIsArray($roots);
-        $this->assertContains('/data/visionsy/managed', $roots);
+        $this->assertContains($this->managedRoot, $roots);
     }
 
     /** @test */
@@ -390,14 +397,14 @@ class MediaPathRefactoringTest extends TestCase
         $this->managedSource->update(['is_read_only' => true]);
 
         $file = UploadedFile::fake()->image('test.jpg');
-        $storage = app(\App\Services\Media\MediaStorageService::class);
+        $storage = app(MediaStorageService::class);
 
         $this->expectException(\RuntimeException::class);
         $storage->store($file, [
             'title' => 'Test',
             'storage_source_id' => $this->managedSource->id,
             'gallery_id' => $this->managedGallery->id,
-        ], \App\Models\User::factory()->create());
+        ], User::factory()->create());
     }
 
     /** @test */
@@ -411,7 +418,7 @@ class MediaPathRefactoringTest extends TestCase
 
         $resource = MediaResource::create([
             'title' => 'External Resource',
-            'type' => \App\Enums\MediaType::Image,
+            'type' => MediaType::Image,
             'status' => MediaStatus::Active,
             'index_status' => MediaStatus::Active,
             'original_name' => 'ext.jpg',
@@ -428,8 +435,8 @@ class MediaPathRefactoringTest extends TestCase
 
         $pathResolver = app(PathResolverService::class);
         $path = $pathResolver->resolveNewDerivativeAbsolute($resource, DerivativeVariant::Thumb);
-        $this->assertStringStartsWith(str_replace('\\', '/', $this->derivativesRoot), str_replace('\\', '/', $path));
-        $this->assertStringStartsWith(str_replace('\\', '/', $this->derivativesRoot), str_replace('\\', '/', $path));
+        $this->assertStringStartsWith($resource->gallery->fullPath().'/preview/', str_replace('\\', '/', $path));
+        $this->assertStringStartsWith($resource->gallery->fullPath().'/preview/', str_replace('\\', '/', $path));
     }
 
     /** @test */
@@ -440,10 +447,7 @@ class MediaPathRefactoringTest extends TestCase
 
         $pathResolver->ensureDerivativeDir($resource);
 
-        $base = $this->derivativesRoot.'/'
-            .$resource->storage_source_id.'/'
-            .$resource->gallery_id.'/'
-            .$resource->id;
+        $base = $resource->gallery->fullPath().'/preview/'.$resource->id;
 
         $this->assertDirectoryExists($base);
     }

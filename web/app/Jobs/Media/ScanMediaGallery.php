@@ -3,21 +3,31 @@
 namespace App\Jobs\Media;
 
 use App\Models\MediaGallery;
+use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Media\MediaScannerService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ScanMediaGallery implements ShouldQueue
+class ScanMediaGallery implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
     public int $timeout = 3600;
+
+    public int $uniqueFor = 3700;
+
+    public function uniqueId(): string
+    {
+        return 'gallery-scan:'.$this->galleryId;
+    }
 
     public function __construct(
         private int $galleryId,
@@ -28,7 +38,10 @@ class ScanMediaGallery implements ShouldQueue
 
     public function handle(MediaScannerService $scanner, AuditLogger $audit): void
     {
-        $gallery = MediaGallery::findOrFail($this->galleryId);
+        $gallery = MediaGallery::find($this->galleryId);
+        if ($gallery === null) {
+            return;
+        }
 
         if (! $gallery->canStartScan()) {
             Log::info("图库 #{$gallery->id} 正在被其他进程扫描，跳过。");
@@ -49,7 +62,7 @@ class ScanMediaGallery implements ShouldQueue
 
             $audit->log(
                 'gallery.scanned',
-                $this->actorId !== null ? \App\Models\User::find($this->actorId) : null,
+                $this->actorId !== null ? User::find($this->actorId) : null,
                 'media_gallery',
                 (string) $gallery->id,
                 $result

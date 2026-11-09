@@ -41,10 +41,8 @@ return [
     | direct_serve = true ：本机直接流式返回文件（本地开发 / 单机部署）。
     | direct_serve = false：大文件下载走 307 直连（TransferToken + RedirectDecision）。
     |
-    | DAM 三目录（容器内固定路径，不因平台变化）：
-    |   managed     ：VisionSY 管理的新上传原件，可读写
-    |   sources     ：宿主机挂载的外部图库来源，默认只读
-    |   derivatives ：缩略图/预览/水印派生文件，可重建
+    | 统一媒体目录支持扫描已有文件和上传新文件。
+    | 新派生文件写入图库的 preview/，derivatives_root 仅用于读取旧缓存。
     */
     'media' => [
         'direct_serve' => filter_var(env('MEDIA_DIRECT_SERVE', true), FILTER_VALIDATE_BOOL),
@@ -68,7 +66,7 @@ return [
 
         'allowed_roots' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env('MEDIA_ALLOWED_ROOTS', '/data/visionsy/managed,/data/visionsy/sources'))
+            explode(',', (string) env('MEDIA_ALLOWED_ROOTS', '/data/visionsy/managed'))
         ))),
 
         'scan_exclude_patterns' => array_values(array_filter(array_map(

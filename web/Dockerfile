@@ -1,7 +1,8 @@
 ####################################################################
 # VisionSY 应用镜像（FrankenPHP）
 #
-# app / worker / scheduler 三个服务共享此镜像，以不同命令运行：
+# 开发使用 runtime 阶段；生产使用最后的 production 阶段，包含 MariaDB 与进程管理。
+# 开发 app / worker / scheduler 共享 runtime 镜像，以不同命令运行：
 #   - app       : FrankenPHP Web 服务（public/ 为 Web 根）
 #   - worker    : php artisan queue:work
 #   - scheduler : php artisan schedule:work
@@ -10,7 +11,7 @@
 #   - 多阶段构建：前端（Node）与 Composer 依赖分别构建，生产镜像不含
 #     node_modules、构建缓存与 dev 依赖。
 #   - 不复制 .env、真实媒体、数据库文件或秘密（见 .dockerignore）。
-#   - 容器启动不自动 migrate/seed；迁移是单独的发布步骤。
+#   - 开发 runtime 不自动迁移；生产由唯一 bootstrap 进程执行增量迁移，不自动 seed。
 #   - 容器内应用根目录为 /app（FrankenPHP 默认 Web 根 /app/public）。
 #   - 包发现清单（bootstrap/cache/packages.php）在首次启动时由 Laravel
 #     自动构建（要求 bootstrap/cache 可写），因此构建期不执行 artisan。
@@ -54,7 +55,7 @@ RUN if [ "$INSTALL_COMPOSER_DEV" = "1" ]; then \
     fi
 
 # ---------- 阶段 3：生产运行时 ----------
-FROM dunglas/frankenphp:1-php8.3 AS production
+FROM dunglas/frankenphp:1-php8.3-bookworm AS runtime
 
 # 系统工具与 PHP 扩展：
 #   - gd（含 freetype/jpeg/webp）：水印与派生图（必需）
@@ -108,3 +109,31 @@ EXPOSE 80
 
 # 默认启动 Web 服务；worker / scheduler 在 compose 中覆盖 command。
 CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
+
+# ---------- 阶段 4：单容器生产运行时 ----------
+# 复用官方 MariaDB 初始化逻辑，数据库版本与旧部署同为 11.4。
+FROM mariadb:11.4 AS mariadb-entrypoint
+
+FROM runtime AS production
+RUN curl -fsSL https://mariadb.org/mariadb_release_signing_key.pgp \
+        -o /usr/share/keyrings/mariadb.asc \
+    && echo 'deb [signed-by=/usr/share/keyrings/mariadb.asc] https://deb.mariadb.org/11.4/debian bookworm main' \
+        > /etc/apt/sources.list.d/mariadb.list \
+    && printf 'Package: *\nPin: origin "deb.mariadb.org"\nPin-Priority: 1000\n' > /etc/apt/preferences.d/mariadb \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        mariadb-server mariadb-client supervisor gosu pwgen zstd \
+    && mariadbd --version | grep '11.4.' \
+    && rm -rf /var/lib/mysql/* /var/lib/apt/lists/* \
+    && mkdir -p /docker-entrypoint-initdb.d /run/mysqld \
+    && chown mysql:mysql /run/mysqld
+COPY --from=mariadb-entrypoint /usr/local/bin/docker-entrypoint.sh /usr/local/bin/mariadb-entrypoint.sh
+COPY docker/single/ /etc/visionsy/
+COPY docker/Caddyfile.prod /etc/caddy/Caddyfile
+RUN chmod +x /etc/visionsy/*.sh
+# Inherited FrankenPHP image healthcheck only checks the web process; check all services instead.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD /etc/visionsy/healthcheck.sh
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/etc/visionsy/entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/visionsy/supervisord.conf"]

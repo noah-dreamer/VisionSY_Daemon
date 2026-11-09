@@ -7,10 +7,10 @@
  *
  * 用法：
  *   node deploy.mjs dev    # 开发：compose.yaml + compose.dev.yaml（含 Composer dev 依赖、Vite）
- *   node deploy.mjs prod   # 生产：compose.yaml + compose.prod.yaml（生产镜像、不发布 DB 端口）
+ *   node deploy.mjs prod   # 生产：compose.prod.yaml（独立单容器配置）（生产镜像、不发布 DB 端口）
  *
  * 说明：
- *   - 这是「构建镜像 → 启动 → 迁移」三步的安全合并，等价于依次手动执行对应 VS Code 任务。
+ *   - 这是「构建镜像 → 启动 → 迁移」三步的安全合并，可直接从终端运行。
  *   - 它替代了过去「构建后登录失效 → 用 migrate:fresh --seed 恢复」的错误做法：
  *     真正原因是启动后未迁移、新代码跑在陈旧/半完成的库结构上；本脚本用 migrate --force 修正。
  *   - 生产环境执行前请先备份数据库（见 README「备份与恢复」）。
@@ -32,13 +32,13 @@ if (mode !== 'dev' && mode !== 'prod') {
 if (!existsSync(ENV_FILE)) {
     console.error(`[deploy] 未找到 ${ENV_FILE}。`);
     console.error(mode === 'prod'
-        ? '  生产：cp .env.prod.example .env，填入真实秘密（来自密钥管理），勿入库。'
-        : '  开发：执行任务「VisionSY: 初始化开发环境 (Docker)」生成 .env，或 cp .env.dev.example .env。');
+        ? '  生产：cp .env.example .env，填入真实秘密（来自密钥管理），勿入库。'
+        : '  开发：请按 deploy/docker/README.md 准备 .env，再运行 node deploy.mjs dev。');
     process.exit(1);
 }
 
 const override = mode === 'prod' ? 'compose.prod.yaml' : 'compose.dev.yaml';
-const COMPOSE = ['-f', 'compose.yaml', '-f', override, '--env-file', '.env'];
+const COMPOSE = [...(mode === 'dev' ? ['-f', 'compose.yaml'] : []), '-f', override, '--env-file', '.env'];
 
 // 跨平台同步等待（不依赖 sleep/timeout 命令）。
 function sleepSync(ms) {
@@ -69,6 +69,25 @@ function run(args, { retries = 1, delayMs = 4000, label = '' } = {}) {
     process.exit(lastStatus);
 }
 
+// The old database must be stopped before the combined image mounts its data volume.
+// install.sh handles backup and ordered shutdown for that upgrade path.
+if (mode === 'prod') {
+    const rendered = spawnSync('docker', ['compose', ...COMPOSE, 'config', '--format', 'json'],
+        { cwd: here, encoding: 'utf8', shell: false });
+    if (rendered.status !== 0) {
+        console.error(rendered.stderr);
+        process.exit(rendered.status ?? 1);
+    }
+    const project = JSON.parse(rendered.stdout).name;
+    const legacy = spawnSync('docker', ['ps', '-q', '--filter',
+        `label=com.docker.compose.project=${project}`, '--filter', 'label=com.docker.compose.service=db'],
+        { encoding: 'utf8', shell: false });
+    if (legacy.status !== 0 || legacy.stdout.trim()) {
+        console.error('[deploy] 请先使用 bash install.sh 升级旧多容器部署（含数据库备份和有序停止）。');
+        process.exit(1);
+    }
+}
+
 console.log(`[deploy] 模式 = ${mode}（${override}）`);
 
 // 1) 构建镜像（网络敏感：BuildKit 需解析/拉取基础镜像，失败自动重试）
@@ -77,30 +96,27 @@ run(['build'], { retries: mode === 'prod' ? 3 : 5, delayMs: 4000, label: ' [buil
 
 // 2) 启动并等待健康（--wait 会等待 healthcheck 通过；app 依赖 db 健康后才起）
 console.log('\n[deploy] 2/5 启动服务并等待健康（up -d --wait）...');
-run(['up', '-d', '--wait'], { retries: 4, delayMs: 4000, label: ' [up]' });
+run(['up', '-d', '--wait', '--wait-timeout', '300'], { retries: 4, delayMs: 4000, label: ' [up]' });
 
-// 3) 迁移（非破坏性，不 seed）。这是发布步骤的核心，确保库结构与代码一致。
-console.log('\n[deploy] 3/5 执行迁移（migrate --force，非破坏性）...');
-run(['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force'], { label: ' [migrate]' });
-
-// 4) 清理启动缓存。bootstrap_cache 是命名卷：镜像重建不会更新它；一旦其中残留过
-//    config 缓存，Laravel 会跳过加载 .env，出现"改了配置却不生效"的诡异现象。
-console.log('\n[deploy] 4/5 清理启动缓存（optimize:clear）...');
-run(['exec', '-T', 'app', 'php', 'artisan', 'optimize:clear'], { label: ' [optimize:clear]' });
-
-console.log('\n[deploy] 5/5 建立 storage 软链接（storage:link，若已存在会跳过）...');
-run(['exec', '-T', 'app', 'php', 'artisan', 'storage:link'], { label: ' [storage:link]' });
+if (mode === 'dev') {
+    console.log('\n[deploy] 执行开发数据库迁移...');
+    run(['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force']);
+    run(['exec', '-T', 'app', 'php', 'artisan', 'optimize:clear']);
+    run(['exec', '-T', 'app', 'php', 'artisan', 'storage:link']);
+}
+// Production bootstrap migrates before starting services; public storage is a volume mount.
 
 if (mode === 'prod') {
     console.log('\n[deploy] 生产缓存预热（optimize）...');
     run(['exec', '-T', 'app', 'php', 'artisan', 'optimize'], { label: ' [optimize]' });
+    run(['exec', '-T', 'app', 'supervisorctl', '-c', '/etc/visionsy/supervisord.conf',
+        'restart', 'application:worker', 'application:scheduler']);
 }
 
 if (mode === 'dev') {
     console.log('\n[deploy] 完成。');
     console.log('  Web      : http://localhost:8000');
     console.log('  Vite HMR : http://localhost:5173');
-    console.log('  首次或需要演示数据时（仅可丢弃开发库）：执行任务「⚠ 重建可丢弃开发数据库 (危险)」。');
 } else {
     console.log('\n[deploy] 完成。建议随后执行生产任务：');
 

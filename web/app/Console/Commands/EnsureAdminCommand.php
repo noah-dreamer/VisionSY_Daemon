@@ -25,6 +25,9 @@ class EnsureAdminCommand extends Command
     protected $signature = 'visionsy:ensure-admin
         {email : 管理员邮箱}
         {--password= : 明文密码；省略时随机生成并打印一次}
+        {--password-stdin : 从标准输入读取密码，避免密码出现在进程参数中}
+        {--if-missing : 账号已存在时保留其密码、角色及状态}
+        {--json : 以 JSON 输出结果，供安装器使用}
         {--display-name= : 显示名（数据库唯一），冲突时自动加后缀}
         {--real-name= : 实名（system_admin 角色要求实名登记）}';
 
@@ -40,10 +43,39 @@ class EnsureAdminCommand extends Command
             return self::FAILURE;
         }
 
-        $plainPassword = (string) ($this->option('password') ?: Str::password(20, symbols: false));
-        $isGenerated = ! $this->option('password');
-
         $existing = User::where('email', $email)->first();
+
+        if ($existing && $this->option('if-missing')) {
+            if ($this->option('json')) {
+                $this->line(json_encode(['email' => $email, 'changed' => false], JSON_THROW_ON_ERROR));
+            } else {
+                $this->info("管理员账号已存在，保留其密码、角色及状态：{$email}");
+            }
+
+            return self::SUCCESS;
+        }
+
+        if ($this->option('password-stdin') && $this->option('password') !== null) {
+            $this->error('--password 与 --password-stdin 不能同时使用。');
+
+            return self::FAILURE;
+        }
+
+        $isGenerated = ! $this->option('password-stdin') && ! $this->option('password');
+
+        if ($this->option('password-stdin')) {
+            $stream = method_exists($this->input, 'getStream') ? $this->input->getStream() : null;
+            $line = fgets($stream ?? STDIN, 1024);
+            $plainPassword = $line === false ? '' : rtrim($line, "\r\n");
+
+            if (mb_strlen($plainPassword) < 8 || strlen($plainPassword) > 72) {
+                $this->error('管理员密码至少需要 8 个字符，UTF-8 长度不能超过 72 字节。');
+
+                return self::FAILURE;
+            }
+        } else {
+            $plainPassword = (string) ($this->option('password') ?: Str::password(20, symbols: false));
+        }
 
         $user = User::updateOrCreate(
             ['email' => $email],
@@ -67,6 +99,18 @@ class EnsureAdminCommand extends Command
             'ip' => '127.0.0.1',
             'context' => ['email' => $email, 'password_rotated' => true],
         ]);
+
+        if ($this->option('json')) {
+            $result = ['email' => $user->email, 'changed' => true, 'created' => ! $existing];
+
+            if ($isGenerated) {
+                $result['generated_password'] = $plainPassword;
+            }
+
+            $this->line(json_encode($result, JSON_THROW_ON_ERROR));
+
+            return self::SUCCESS;
+        }
 
         $this->info(($existing ? '已修复' : '已创建')."系统管理员：{$user->email}（id={$user->id}）");
         $this->line("  角色  : {$user->role->value}");

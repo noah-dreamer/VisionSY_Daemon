@@ -19,6 +19,7 @@
  *   node test.mjs --filter=AuthenticationTest
  */
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,9 +30,10 @@ const COMPOSE = ['-f', 'compose.yaml', '-f', 'compose.dev.yaml', '--env-file', '
 
 /** 一次性测试库名。必须以 `_test` 结尾：web/tests/TestCase.php 的保险丝据此放行。 */
 const TEST_DB = 'visionsy_test';
+const TEST_MEDIA_ROOT = `/tmp/visionsy-test-media/${randomUUID()}`;
 
 if (!existsSync(ENV_FILE)) {
-    console.error(`[test] 未找到 ${ENV_FILE}。请先执行任务「VisionSY: 初始化开发环境」。`);
+    console.error(`[test] 未找到 ${ENV_FILE}。请按 deploy/docker/README.md 准备配置并启动开发容器。`);
     process.exit(1);
 }
 
@@ -64,6 +66,9 @@ const testEnv = {
     MEDIA_TEACHER_CAN_UPLOAD: 'true',
     DB_CONNECTION: 'mysql',
     DB_DATABASE: TEST_DB,
+    MEDIA_MANAGED_ROOT: `${TEST_MEDIA_ROOT}/managed`,
+    MEDIA_DERIVATIVES_ROOT: `${TEST_MEDIA_ROOT}/derivatives`,
+    MEDIA_ALLOWED_ROOTS: `${TEST_MEDIA_ROOT}/managed,${TEST_MEDIA_ROOT}/sources`,
 };
 
 function compose(args) {
@@ -78,7 +83,7 @@ function compose(args) {
 function composeOrExit(args, label) {
     const res = compose(args);
     if (res.status !== 0) {
-        console.error(`\n[test] ${label} 失败（退出码 ${res.status}）。容器是否已启动？先执行「VisionSY: 一键部署 (开发)」。`);
+        console.error(`\n[test] ${label} 失败（退出码 ${res.status}）。请确认开发容器已启动，部署方式见 deploy/docker/README.md。`);
         process.exit(res.status ?? 1);
     }
 }
@@ -96,6 +101,15 @@ composeOrExit(
 
 const envArgs = Object.entries(testEnv).flatMap(([k, v]) => ['-e', `${k}=${v}`]);
 
+composeOrExit(
+    ['exec', '-T', 'app', 'mkdir', '-p', `${TEST_MEDIA_ROOT}/managed`, `${TEST_MEDIA_ROOT}/sources`, `${TEST_MEDIA_ROOT}/derivatives`],
+    '准备测试专用媒体目录'
+);
+
 console.log('[test] 运行 php artisan test ...\n');
 const res = compose(['exec', '-T', ...envArgs, 'app', 'php', 'artisan', 'test', ...passthrough]);
+const cleanup = compose(['exec', '-T', 'app', 'rm', '-rf', '--', TEST_MEDIA_ROOT]);
+if (cleanup.status !== 0) {
+    console.error('[test] 清理测试媒体目录失败：' + TEST_MEDIA_ROOT);
+}
 process.exit(res.status ?? 1);

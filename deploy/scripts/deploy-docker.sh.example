@@ -27,17 +27,22 @@ BACKUP_DIR="${BACKUP_DIR:-${COMPOSE_DIR}/backups}"
 
 cd "${COMPOSE_DIR}"
 
-# 生产组合：基础 + 生产覆盖
+# 独立生产配置：单容器
 dc() {
-    docker compose -p "${COMPOSE_PROJECT}" -f compose.yaml -f compose.prod.yaml --env-file .env "$@"
+    docker compose -p "${COMPOSE_PROJECT}" -f compose.prod.yaml --env-file .env "$@"
 }
 
 require_env() {
     if [[ ! -f .env ]]; then
-        echo "[deploy] 缺少 .env。请从 .env.prod.example 复制并填入真实秘密：" >&2
-        echo "         cp .env.prod.example .env  （然后编辑；切勿提交）" >&2
+        echo "[deploy] 缺少 .env。请从 .env.example 复制并填入真实秘密：" >&2
+        echo "         cp .env.example .env  （然后编辑；切勿提交）" >&2
         exit 1
     fi
+    if [[ -n "$(docker ps -q --filter "label=com.docker.compose.project=${COMPOSE_PROJECT}" --filter 'label=com.docker.compose.service=db')" ]]; then
+        echo "[deploy] 当前仍是旧多容器部署。请先按 deploy/INSTALL-LINUX.md 使用安装器备份并升级。" >&2
+        exit 1
+    fi
+
 }
 
 healthcheck() {
@@ -66,7 +71,7 @@ backup_db() {
     local out="${BACKUP_DIR}/${db}-${stamp}.sql.gz"
     echo "[deploy] 备份数据库 → ${out}"
     # 密码从容器环境变量传入（MARIADB_ROOT_PASSWORD），不拼入命令行或脚本文本。
-    dc exec -T db sh -c 'mariadb-dump -u root -p"${MARIADB_ROOT_PASSWORD}" --single-transaction --routines --triggers "${MARIADB_DATABASE}"' | gzip > "${out}"
+    dc exec -T app sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb-dump -u root --single-transaction --routines --triggers "${MARIADB_DATABASE}"' | gzip > "${out}"
     echo "[deploy] 备份完成：${out} ($(du -h "${out}" | cut -f1))"
 }
 
@@ -99,22 +104,21 @@ backup_full() {
 #   1) 停止应用（保留数据卷）：
 #        dc down
 #   2) 恢复数据库：
-#        dc up -d db
-#        zcat backups/visionsy-YYYYMMDD-HHMMSS.sql.gz | dc exec -T db sh -c 'mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" "${MARIADB_DATABASE}"'
+#        dc up -d --wait
+#        zcat backups/visionsy-YYYYMMDD-HHMMSS.sql.gz | dc exec -T app sh -c 'mariadb -u root --password="${MARIADB_ROOT_PASSWORD}" "${MARIADB_DATABASE}"'
 #   3) 恢复 managed 原件：
 #        tar -xzf backups/managed-YYYYMMDD-HHMMSS.tar.gz -C "$(dirname "${DAM_HOST_MANAGED}")"
 #   4) 恢复 APP_KEY：
 #        从密钥管理/安全备份中获取 APP_KEY，写入 .env（容器启动后自动生效）。
 #   5) 启动应用：
-#        dc up -d
-#   6) 迁移（如有新迁移）：
-#        dc exec -T app php artisan migrate --force
+#        dc up -d --wait --wait-timeout 300
+#   6) 启动时自动执行增量迁移，确认日志无错误。
 #   7) 健康检查：
 #        curl -fsS http://127.0.0.1:${APP_PORT:-8000}/up
 #   8) 重建派生文件（如有需要）：
 #        dc exec -T app php artisan media:rescan-source --source-id=ALL
 #   9) 清空并重启队列 Worker：
-#        dc restart worker scheduler
+#        dc exec -T app supervisorctl -c /etc/visionsy/supervisord.conf restart application:worker application:scheduler
 #
 # sources 备份：是否备份取决于来源系统（外部 NAS 等）；VisionSY 只读挂载，不负责其备份。
 # derivatives 不备份：可重建数据，通过扫描重新生成。
@@ -142,7 +146,7 @@ backup_full() {
 #   2) 从备份恢复数据库（见上方恢复步骤 2）
 #   3) 切换到旧镜像（docker tag 或 rebuild 旧 commit）
 #   4) dc up -d         # 以旧镜像启动
-#   5) dc restart worker scheduler
+#   5) dc exec -T app supervisorctl -c /etc/visionsy/supervisord.conf restart application:worker application:scheduler
 #   6) curl /up          # 健康检查
 #
 # 维护窗口：
@@ -157,7 +161,7 @@ optimize() {
 
 reload_workers() {
     echo "[deploy] 重载 worker / scheduler..."
-    dc restart worker scheduler
+    dc exec -T app supervisorctl -c /etc/visionsy/supervisord.conf restart application:worker application:scheduler
 }
 
 cmd_install() {
@@ -165,11 +169,10 @@ cmd_install() {
     echo "[deploy] 首次部署：构建镜像..."
     dc build
     echo "[deploy] 启动服务..."
-    dc up -d
+    dc up -d --wait --wait-timeout 300
     echo "[deploy] 等待数据库就绪..."
     dc exec -T app php artisan migrate:status >/dev/null 2>&1 || true
-    echo "[deploy] 执行迁移（php artisan migrate）..."
-    dc exec -T app php artisan migrate --force
+    echo "[deploy] 容器启动时已完成增量迁移。"
     optimize
     healthcheck
     echo "[deploy] 首次部署完成。"
@@ -181,9 +184,8 @@ cmd_update() {
     echo "[deploy] 构建新镜像..."
     dc build
     echo "[deploy] 重建并启动容器（维护窗口：秒级中断）..."
-    dc up -d
-    echo "[deploy] 执行迁移..."
-    dc exec -T app php artisan migrate --force
+    dc up -d --wait --wait-timeout 300
+    echo "[deploy] 容器启动时已完成增量迁移。"
     optimize
     reload_workers
     healthcheck

@@ -16,14 +16,17 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
 use Throwable;
 
-class ProcessNewUpload implements ShouldQueue, ShouldBeUnique
+class ProcessNewUpload implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 300;
+
     public int $backoff = 30;
 
     public function __construct(
@@ -66,16 +69,35 @@ class ProcessNewUpload implements ShouldQueue, ShouldBeUnique
                 return;
             }
 
+            // Files discovered on disk and uploads share the same processing path.
+            $detected = $fileTypeDetector->detect($absPath);
+            $extracted = $metadata->extract($absPath, $detected['mime']);
+            $resource->update([
+                'mime' => $detected['mime'],
+                'type' => $fileTypeDetector->toMediaType($detected['category']),
+                'is_raw' => $detected['is_raw'],
+                'metadata' => $extracted['all'] ?: null,
+                'taken_at' => $extracted['quick']['taken_at'] ?? null,
+                'camera' => isset($extracted['quick']['camera']) ? mb_substr($extracted['quick']['camera'], 0, 120) : null,
+                'duration_seconds' => $extracted['quick']['duration_seconds'] ?? null,
+            ]);
+
             if ($resource->type->value === 'image') {
                 $this->processImage($resource, $absPath, $pathResolver, $imageService, $converter);
             } elseif ($resource->type->value === 'video') {
-                $framePath = $this->extractVideoFrame($absPath, dirname($absPath).'/frame.jpg');
-                if ($framePath !== null) {
-                    $imageService->generateAllDerivatives($framePath, $resource, $pathResolver);
+                $framePath = $this->extractVideoFrame($absPath, $pathResolver->ensureDerivativeDir($resource).'/frame.jpg');
+                if ($framePath === null) {
+                    throw new \RuntimeException('无法从视频生成预览帧。');
+                }
+                try {
+                    $dim = $imageService->generateAllDerivatives($framePath, $resource, $pathResolver);
+                } finally {
                     @unlink($framePath);
                 }
 
                 $resource->update([
+                    'width' => $dim['width'],
+                    'height' => $dim['height'],
                     'has_thumb' => true,
                     'has_preview' => true,
                     'derivative_status' => DerivativeStatus::Ready->value,
@@ -153,7 +175,7 @@ class ProcessNewUpload implements ShouldQueue, ShouldBeUnique
         $bin = config('visionsy.media.ffmpeg_path') ?: 'ffmpeg';
 
         try {
-            $process = new \Symfony\Component\Process\Process([
+            $process = new Process([
                 $bin, '-y', '-ss', '1', '-i', $videoPath,
                 '-frames:v', '1', '-q:v', '3', $framePath,
             ]);
@@ -161,7 +183,7 @@ class ProcessNewUpload implements ShouldQueue, ShouldBeUnique
             $process->run();
 
             return $process->isSuccessful() && is_file($framePath) ? $framePath : null;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

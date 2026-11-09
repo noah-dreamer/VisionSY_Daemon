@@ -11,8 +11,7 @@ class GalleryService
 {
     public function __construct(
         private PathResolverService $pathResolver,
-    ) {
-    }
+    ) {}
 
     public function create(MediaStorageSource $source, array $data): MediaGallery
     {
@@ -23,6 +22,9 @@ class GalleryService
         $folderName = $data['folder_name'] ?? $data['name'];
         $this->pathResolver->validateRelativePath($folderName);
         $safeFolder = $this->pathResolver->safeBasename($folderName);
+        if (in_array(strtolower($safeFolder), [PathResolverService::DERIVATIVE_DIR, PathResolverService::LEGACY_DERIVATIVE_DIR], true)) {
+            throw new RuntimeException('preview 和 _visionsy 是生成文件的保留目录名。');
+        }
 
         $relativePath = $this->pathResolver->normalizePath($safeFolder);
 
@@ -100,7 +102,8 @@ class GalleryService
             throw new RuntimeException('无法读取存储源根目录。');
         }
 
-        $found = 0;
+        $rootGallery = $this->ensureRootGallery($source);
+        $found = $rootGallery->wasRecentlyCreated ? 1 : 0;
         $excludeList = config('visionsy.media.scan_exclude_patterns', []);
 
         foreach ($entries as $entry) {
@@ -108,8 +111,7 @@ class GalleryService
                 continue;
             }
 
-            // 跳过 _visionsy
-            if ($entry === PathResolverService::DERIVATIVE_DIR) {
+            if (in_array(strtolower($entry), [PathResolverService::DERIVATIVE_DIR, PathResolverService::LEGACY_DERIVATIVE_DIR], true)) {
                 continue;
             }
 
@@ -161,6 +163,20 @@ class GalleryService
         }
 
         return $found;
+    }
+
+    /** 根目录本身也是图库，支持直接放入文件和上传。 */
+    public function ensureRootGallery(MediaStorageSource $source): MediaGallery
+    {
+        return MediaGallery::firstOrCreate([
+            'storage_source_id' => $source->id,
+            'relative_path' => '',
+        ], [
+            'name' => $source->name,
+            'is_managed' => false,
+            'is_visible' => true,
+            'scan_status' => ScanStatus::Pending->value,
+        ]);
     }
 
     public function delete(MediaGallery $gallery): void

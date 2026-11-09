@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\TransferToken;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class TransferTokenApiTest extends TestCase
@@ -13,7 +14,19 @@ class TransferTokenApiTest extends TestCase
 
     private array $authHeader = ['X-Internal-Secret' => 'test-only-internal-secret'];
 
-    private function issueToken(array $overrides = []): \Illuminate\Testing\TestResponse
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Keep fixture credentials and hosts independent of the container environment.
+        config([
+            'visionsy.internal_api_secret' => $this->authHeader['X-Internal-Secret'],
+            'visionsy.urls.external_transfer' => 'https://files.example.com:8443',
+            'visionsy.urls.lan_transfer' => 'https://files-internal.example.com:8443',
+        ]);
+    }
+
+    private function issueToken(array $overrides = []): TestResponse
     {
         $user = User::factory()->create();
 

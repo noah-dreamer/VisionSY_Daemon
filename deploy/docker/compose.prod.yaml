@@ -1,32 +1,54 @@
-# ==================================================================
-# VisionSY 生产覆盖（compose.prod.yaml）
-#
-# 用法：docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d
-#
-# 生产约定：
-#   - 不发布 DB 端口（基础文件已不发布，这里显式保持为空）。
-#   - 前端资源在镜像构建期生成，不运行 Vite。
-#   - APP_ENV=production / APP_DEBUG=false 来自 .env（建议用 .env.prod.example）。
-#   - 迁移是单独、可观察的发布步骤，不在容器启动时执行。
-#   - 覆盖 Caddyfile 为生产版（禁止自动 HTTPS + JSON 日志）。
-# ==================================================================
-
+# Standalone production configuration: one container, four supervised processes.
+# docker compose -f compose.prod.yaml --env-file .env up -d --build --wait
+name: visionsy
 services:
   app:
-    restart: always
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+      target: production
+    image: visionsy-app:${APP_IMAGE_TAG:-latest}
+    env_file:
+      - .env
     environment:
-      SERVER_NAME: "${SERVER_NAME:-:80}"
-    # 生产 Caddyfile（禁止自动 HTTPS、JSON 日志格式）
+      APP_ENV: production
+      APP_DEBUG: "false"
+      SERVER_NAME: ":80"
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: ${DB_DATABASE:-visionsy}
+      DB_USERNAME: ${DB_USERNAME:-visionsy}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_SOCKET: ""
+      MARIADB_DATABASE: ${DB_DATABASE:-visionsy}
+      MARIADB_USER: ${DB_USERNAME:-visionsy}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+      MARIADB_ROOT_HOST: localhost
+      MARIADB_INITDB_SKIP_TZINFO: "1"
+    ports:
+      - "${APP_PORT:-8000}:80"
     volumes:
-      - ../../web/docker/Caddyfile.prod:/etc/caddy/Caddyfile:ro
-
-  worker:
-    restart: always
-
-  scheduler:
-    restart: always
-
-  db:
-    restart: always
-    # 生产不向宿主机/公网发布数据库端口
-    ports: []
+      - storage:/app/storage
+      - bootstrap_cache:/app/bootstrap/cache
+      - db_data:/var/lib/mysql
+      - ${DAM_HOST_MANAGED:-./data/media}:/data/visionsy/managed
+      - type: volume
+        source: storage
+        target: /app/public/storage
+        volume:
+          subpath: app/public
+          nocopy: true
+    restart: unless-stopped
+    # Workers finish before MariaDB shuts down. Match the queue job timeout.
+    stop_grace_period: 65m
+    networks:
+      - visionsy
+volumes:
+  storage:
+  bootstrap_cache:
+  db_data:
+networks:
+  visionsy:
+    driver: bridge

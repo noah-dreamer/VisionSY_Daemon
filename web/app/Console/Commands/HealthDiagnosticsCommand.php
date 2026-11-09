@@ -32,10 +32,9 @@ class HealthDiagnosticsCommand extends Command
         $this->line('');
         $this->info('[2/6] DAM mount points...');
         $mounts = [
-            'managed' => config('visionsy.managed_root', '/data/visionsy/managed'),
-            'derivatives' => config('visionsy.derivatives_root', '/data/visionsy/derivatives'),
+            'media' => config('visionsy.media.managed_root', '/data/visionsy/managed'),
         ];
-        $allowedRoots = explode(',', config('visionsy.allowed_roots', ''));
+        $allowedRoots = config('visionsy.media.allowed_roots', []);
         foreach ($allowedRoots as $i => $root) {
             $mounts["sources[{$i}]"] = $root;
         }
@@ -56,7 +55,7 @@ class HealthDiagnosticsCommand extends Command
         // 3. 存储空间
         $this->line('');
         $this->info('[3/6] Storage space...');
-        foreach (['/app/storage', '/data/visionsy/managed', '/data/visionsy/derivatives'] as $dir) {
+        foreach (array_unique(['/app/storage', ...array_values($mounts)]) as $dir) {
             if (! is_dir($dir)) {
                 $this->warn("  {$dir}: not found");
 
