@@ -1044,7 +1044,7 @@ html.js [data-reveal].is-revealed {
 
 /* ---------- 人机验证 checkbox 按钮（reCAPTCHA 风格） ---------- */
 .captcha-checkbox-btn {
-    @apply inline-flex items-center gap-3 rounded-xl border border-ink-200 bg-white px-4 py-3
+    @apply flex w-full items-center gap-3 rounded-xl border border-ink-200 bg-white px-4 py-3
            transition hover:border-ink-300 focus:outline-none focus:ring-2 focus:ring-brand-500/25
            disabled:cursor-wait;
 }

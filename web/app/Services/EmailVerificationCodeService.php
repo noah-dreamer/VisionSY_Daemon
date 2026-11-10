@@ -6,6 +6,7 @@ use App\Mail\EmailVerificationCodeMail;
 use App\Models\EmailVerificationCode;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 注册邮箱验证码：
@@ -47,29 +48,30 @@ class EmailVerificationCodeService
     /** 生成并发送验证码。返回 false 表示仍在冷却期。 */
     public function issue(User $user): bool
     {
-        if ($this->resendAvailableIn($user) > 0) {
-            return false;
-        }
-
-        // 旧验证码全部作废
-        EmailVerificationCode::query()->where('user_id', $user->id)->delete();
-
-        $length = (int) config('visionsy.email_code.length', 6);
-        $code = str_pad((string) random_int(0, (10 ** $length) - 1), $length, '0', STR_PAD_LEFT);
-        $ttl = (int) config('visionsy.email_code.ttl_seconds', 600);
-
-        EmailVerificationCode::create([
-            'user_id' => $user->id,
-            'code_hash' => hash('sha256', $code),
-            'expires_at' => now()->addSeconds($ttl),
-            'sent_at' => now(),
-        ]);
-
-        Mail::to($user->email)->send(new EmailVerificationCodeMail($user, $code, (int) ceil($ttl / 60)));
-
-        $this->audit->log('user.email_code_sent', $user, 'user', (string) $user->id);
-
-        return true;
+        app(MailConfiguration::class)->prepare();
+        return DB::transaction(function () use ($user) {
+            // Serialize resend attempts for one account; failed delivery rolls back the cooldown/code.
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($this->resendAvailableIn($user) > 0) {
+                return false;
+            }
+            EmailVerificationCode::where('user_id', $user->id)->delete();
+            $length = (int) config('visionsy.email_code.length', 6);
+            $code = str_pad((string) random_int(0, (10 ** $length) - 1), $length, '0', STR_PAD_LEFT);
+            $ttl = (int) config('visionsy.email_code.ttl_seconds', 600);
+            EmailVerificationCode::create([
+                'user_id' => $user->id, 'code_hash' => hash('sha256', $code),
+                'expires_at' => now()->addSeconds($ttl), 'sent_at' => now(),
+            ]);
+            try {
+                Mail::to($user->email)->send(new EmailVerificationCodeMail($user, $code, (int) ceil($ttl / 60)));
+            } catch (\Throwable $error) {
+                // Do not expose SMTP credentials or the verification code in errors/logs.
+                throw new MailDeliveryException('暂时无法发送验证邮件，请稍后重试或联系管理员。');
+            }
+            $this->audit->log('user.email_code_sent', $user, 'user', (string) $user->id);
+            return true;
+        });
     }
 
     /** 校验验证码。成功时删除该用户全部验证码。 */

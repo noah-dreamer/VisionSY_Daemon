@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(\App\Services\MailConfiguration::class);
         $this->app->singleton(TrustedProxyIpResolver::class, fn () => new TrustedProxyIpResolver());
         $this->app->singleton(PathResolverService::class, fn () => new PathResolverService());
         $this->app->singleton(StorageSourceService::class, fn () => new StorageSourceService(
@@ -60,13 +61,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($email.'|'.$request->ip());
         });
 
+        RateLimiter::for('public-registration', fn (Request $request) => Limit::perMinute(5)->by('registration|'.$request->ip()));
+
         // 内部 API 限速
         RateLimiter::for('internal-api', function (Request $request) {
             return Limit::perMinute(300)->by($request->ip());
         });
 
         View::composer('layouts.settings', function ($view) {
-            $view->with('navItems', [
+            $navItems = [
                 [
                     'label' => '账户设置',
                     'items' => [
@@ -86,7 +89,16 @@ class AppServiceProvider extends ServiceProvider
                         ['route' => 'admin.audit-logs.index',      'label' => '审计日志',       'match' => 'admin.audit-logs.*',      'icon' => 'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z'],
                     ],
                 ],
-            ]);
+            ];
+            if (! config('management.legacy_admin_enabled')) {
+                foreach ($navItems as &$group) {
+                    if ($group['adminOnly'] ?? false) {
+                        $group['items'] = [array_replace($group['items'][0], ['label' => '打开独立管理控制台'])];
+                    }
+                }
+                unset($group);
+            }
+            $view->with('navItems', $navItems);
         });
     }
 }

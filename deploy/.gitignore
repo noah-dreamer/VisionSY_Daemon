@@ -21,3 +21,7 @@ docker/*.env
 # Linux installer state and initial credentials
 docker/.install/
 __pycache__/
+
+# Independent local split deployment and initial credentials
+docker/.split-local/
+!docker/.env.daemon.example

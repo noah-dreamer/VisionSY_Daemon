@@ -1,3 +1,8 @@
+# 分体部署入口
+
+当前新增 `visionsy-daemon` 与 `visionsy-dashboard`：分别运行；Dashboard 只提供静态界面，管理员浏览器直接连接 daemon。
+优先参阅[分体部署说明](SPLIT-DEPLOYMENT.md)。`install.sh` 仍保留原单容器安装流程。
+
 # 部署（deploy/）
 
 ## 默认部署：Docker Compose + FrankenPHP

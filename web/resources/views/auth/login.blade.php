@@ -31,12 +31,10 @@
             <div>
                 <span class="form-label mb-1.5">人机验证</span>
                 <div id="claw-captcha-root"
-                     class="rounded-xl border border-ink-200 bg-white px-4 py-3"
                      style="--clawcap-bg:#ffffff; --clawcap-ink:#141721; --clawcap-muted:#8a90a3; --clawcap-accent:#3056d3; --clawcap-action:#ff5159;">
                 </div>
                 <input type="hidden" name="captcha_token" id="captcha_token" value="">
                 @error('captcha')<p class="form-error">{{ $message }}</p>@enderror
-                <p class="form-hint">用摇杆（或键盘方向键 + 空格）操作爪子，抓到指定玩具并投入舱口。</p>
             </div>
             @vite('resources/js/claw-captcha.jsx')
         @endif

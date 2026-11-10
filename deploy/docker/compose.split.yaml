@@ -1,0 +1,6 @@
+# Local split deployment: two separate bridges, no shared network or shared storage.
+# Dashboard connects through a daemon host IP/port entered in the web interface.
+name: visionsy-split
+include:
+  - path: compose.daemon.yaml
+  - path: compose.dashboard.yaml

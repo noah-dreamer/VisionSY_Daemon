@@ -1,0 +1,18 @@
+# Standalone dashboard. No daemon address/credential is required at startup.
+name: visionsy-dashboard
+services:
+  dashboard:
+    build:
+      context: ../../../VisionSY_Dashboard
+    image: visionsy-dashboard:${DASHBOARD_IMAGE_TAG:-local}
+    environment:
+      PORT: "8090"
+      HOST: 0.0.0.0
+    ports:
+      - "${DASHBOARD_BIND_IP:-0.0.0.0}:${DASHBOARD_PORT:-8090}:8090"
+    restart: unless-stopped
+    networks:
+      - dashboard_net
+networks:
+  dashboard_net:
+    driver: bridge

@@ -1,3 +1,7 @@
+> 当前推荐的 daemon / dashboard 分体部署入口：[`../SPLIT-DEPLOYMENT.md`](../SPLIT-DEPLOYMENT.md)。
+> `compose.split.yaml` 启动两个独立网络中的容器；地址与密钥由管理员在控制台网页中配置。
+> 本文其余内容保留开发与旧单容器部署说明。
+
 # VisionSY Docker Compose 部署（deploy/docker/）
 
 生产使用一个容器：FrankenPHP、MariaDB 11.4、队列和调度器由 Supervisor 管理。

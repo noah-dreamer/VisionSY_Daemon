@@ -25,7 +25,7 @@
                                 @endphp
 
                                 <a
-                                    href="{{ route($item['route']) }}"
+                                    href="{{ (! config('management.legacy_admin_enabled') && str_starts_with($item['route'], 'admin.') && config('management.dashboard_url')) ? config('management.dashboard_url') : route($item['route']) }}"
                                     @if ($isCurrent) aria-current="page" @endif
                                     class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition
                                            {{ $isCurrent
@@ -70,7 +70,7 @@
                         @endphp
 
                         <a
-                            href="{{ route($item['route']) }}"
+                            href="{{ (! config('management.legacy_admin_enabled') && str_starts_with($item['route'], 'admin.') && config('management.dashboard_url')) ? config('management.dashboard_url') : route($item['route']) }}"
                             @if ($isCurrent) aria-current="page" @endif
                             class="shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition
                                    {{ $isCurrent

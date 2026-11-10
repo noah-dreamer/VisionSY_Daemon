@@ -25,7 +25,7 @@ Route::get('/', HomeController::class)->name('home');
 /* ---------- 访客 ---------- */
 Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisterController::class, 'create'])->name('register');
-    Route::post('/register', [RegisterController::class, 'store']);
+    Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:public-registration');
 
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store']);
@@ -98,7 +98,7 @@ Route::prefix('media')->name('media.')->group(function () {
 });
 
 /* ---------- 管理后台（仅 system_admin） ---------- */
-Route::middleware(['auth', 'system_admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'system_admin', 'legacy_admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', AdminDashboardController::class)->name('dashboard');
 
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

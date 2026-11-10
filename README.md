@@ -1,4 +1,7 @@
-# VisionSY
+# VisionSY Daemon
+
+媒体服务与管理 API 项目，独立控制台见相邻的 `VisionSY_Dashboard/` 项目。
+
 
 > **⚡ 集成版（Integrated Edition）说明**
 >
@@ -14,8 +17,8 @@
 > - **容器开发与测试**：使用 Docker Compose + FrankenPHP + MariaDB 部署，通过 `node deploy/docker/test.mjs` 运行隔离数据库测试；
 >
 >
-> **单容器生产部署**：网站、MariaDB 11.4、队列和调度器打包在一个容器，数据库和媒体持久保存。
-> **Linux 生产安装**：在仓库根目录运行 `bash install.sh`，自动补齐环境、构建镜像、生成密钥，并设置 HTTP 监听地址、媒体目录与管理员密码；域名和证书由独立反向代理负责，见[安装说明](deploy/INSTALL-LINUX.md)。
+> **分体部署**：普通用户网站、媒体文件与数据库运行在 `visionsy-daemon`；管理员使用纯静态 `visionsy-dashboard`，在网页输入地址与连接密钥，由管理员浏览器直接连接 daemon。支持本机独立网络测试与异机部署，见[分体部署说明](deploy/SPLIT-DEPLOYMENT.md)。
+> **原单容器安装路径**：在仓库根目录运行 `bash install.sh`，自动补齐环境、构建镜像、生成密钥，并设置 HTTP 监听地址、媒体目录与管理员密码；域名和证书由独立反向代理负责，见[安装说明](deploy/INSTALL-LINUX.md)。
 > **开发部署**：按照 [`deploy/docker/README.md`](deploy/docker/README.md) 启动 Docker 开发环境，默认 Web :8000、Vite HMR :5173。
 > 一键安装只创建 `admin@example.com`，密码由安装时输入或随机生成；演示账号仅在手工运行开发种子数据时创建。
 >

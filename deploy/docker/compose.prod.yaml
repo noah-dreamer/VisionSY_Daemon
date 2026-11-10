@@ -11,6 +11,7 @@ services:
     env_file:
       - .env
     environment:
+      LEGACY_ADMIN_ENABLED: ${LEGACY_ADMIN_ENABLED:-true}
       APP_ENV: production
       APP_DEBUG: "false"
       SERVER_NAME: ":80"

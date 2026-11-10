@@ -32,12 +32,20 @@ const COMPOSE = ['-f', 'compose.yaml', '-f', 'compose.dev.yaml', '--env-file', '
 const TEST_DB = 'visionsy_test';
 const TEST_MEDIA_ROOT = `/tmp/visionsy-test-media/${randomUUID()}`;
 
-if (!existsSync(ENV_FILE)) {
+
+const requestedArgs = process.argv.slice(2).filter((a) => a !== '--');
+// Opt-in test execution in a separate daemon; the database safety fuse remains unchanged.
+const daemonArg = requestedArgs.findIndex(a => a === '--daemon-container');
+const daemonContainer = daemonArg >= 0 ? requestedArgs[daemonArg + 1] : null;
+if (daemonArg >= 0 && (!daemonContainer || !/^visionsy-split-test-[a-z0-9-]+$/.test(daemonContainer))) {
+    throw new Error('--daemon-container only accepts an isolated visionsy-split-test-* container');
+}
+const passthrough = daemonArg >= 0 ? requestedArgs.filter((_, i) => i !== daemonArg && i !== daemonArg + 1) : requestedArgs;
+
+if (!daemonContainer && !existsSync(ENV_FILE)) {
     console.error(`[test] 未找到 ${ENV_FILE}。请按 deploy/docker/README.md 准备配置并启动开发容器。`);
     process.exit(1);
 }
-
-const passthrough = process.argv.slice(2).filter((a) => a !== '--');
 
 /**
  * 测试专用环境变量。
@@ -47,6 +55,7 @@ const passthrough = process.argv.slice(2).filter((a) => a !== '--');
  */
 const testEnv = {
     APP_ENV: 'testing',
+    LEGACY_ADMIN_ENABLED: 'true',
     APP_DEBUG: 'true',
     APP_MAINTENANCE_DRIVER: 'file',
     BCRYPT_ROUNDS: '4',
@@ -64,6 +73,7 @@ const testEnv = {
     MEDIA_DIRECT_SERVE: 'true',
     MEDIA_GUEST_BROWSE: 'true',
     MEDIA_TEACHER_CAN_UPLOAD: 'true',
+    ...(daemonContainer ? { DB_HOST: '127.0.0.1', DB_PORT: '3306' } : {}),
     DB_CONNECTION: 'mysql',
     DB_DATABASE: TEST_DB,
     MEDIA_MANAGED_ROOT: `${TEST_MEDIA_ROOT}/managed`,
@@ -72,6 +82,11 @@ const testEnv = {
 };
 
 function compose(args) {
+    if (daemonContainer && args[0] === 'exec') {
+        const service = args.findIndex(a => a === 'app' || a === 'db');
+        args = ['exec', ...args.slice(1, service).filter(a => a !== '-T'), daemonContainer, ...args.slice(service + 1)];
+        return spawnSync('docker', args, { cwd: here, stdio: 'inherit', shell: false, encoding: 'utf8' });
+    }
     return spawnSync('docker', ['compose', ...COMPOSE, ...args], {
         cwd: here,
         stdio: 'inherit',
@@ -106,8 +121,9 @@ composeOrExit(
     '准备测试专用媒体目录'
 );
 
-console.log('[test] 运行 php artisan test ...\n');
-const res = compose(['exec', '-T', ...envArgs, 'app', 'php', 'artisan', 'test', ...passthrough]);
+console.log('[test] 运行隔离测试 ...\n');
+const runner = daemonContainer ? ['-d', 'disable_functions=', 'vendor/bin/phpunit'] : ['artisan', 'test'];
+const res = compose(['exec', '-T', ...envArgs, 'app', 'php', ...runner, ...passthrough]);
 const cleanup = compose(['exec', '-T', 'app', 'rm', '-rf', '--', TEST_MEDIA_ROOT]);
 if (cleanup.status !== 0) {
     console.error('[test] 清理测试媒体目录失败：' + TEST_MEDIA_ROOT);

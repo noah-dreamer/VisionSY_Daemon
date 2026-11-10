@@ -10,10 +10,15 @@
         </div>
 
         <h1 class="text-xl font-semibold tracking-tight text-ink-950">输入邮箱验证码</h1>
+        @if ($mailConfigured ?? true)
         <p class="mt-2.5 prose-muted">
             我们已向 <span class="font-medium text-ink-900">{{ auth()->user()->email }}</span> 发送了一个
             <span class="font-medium text-ink-900">6 位数字验证码</span>（10 分钟内有效）。
         </p>
+
+        @else
+        <p class="mt-2.5 prose-muted">网站邮件服务尚未配置，当前无法投递验证码。请联系管理员配置发信服务，随后点击“重新发送验证码”。</p>
+        @endif
 
         <form method="POST" action="{{ route('verification.verify-code') }}" class="mt-7">
             @csrf

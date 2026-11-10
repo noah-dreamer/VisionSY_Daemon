@@ -14,9 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\App\Http\Middleware\ManagementCors::class);
+        $middleware->prependToPriorityList(\Illuminate\Routing\Middleware\SubstituteBindings::class, \App\Http\Middleware\ManagementApiAuth::class);
         $middleware->alias([
             'system_admin' => EnsureSystemAdmin::class,
             'internal_api' => InternalApiAuth::class,
+            'management_api' => \App\Http\Middleware\ManagementApiAuth::class,
+            'legacy_admin' => \App\Http\Middleware\LegacyAdminAccess::class,
         ]);
 
         // Trusted proxies：信任前置反向代理（FrankenPHP/Caddy 等）。

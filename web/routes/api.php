@@ -13,3 +13,5 @@ Route::middleware(['internal_api', 'throttle:internal-api'])->group(function () 
     Route::post('/transfer-tokens/consume', [TransferTokenController::class, 'consume']);
     Route::get('/redirect-decision', [TransferTokenController::class, 'redirectDecision']);
 });
+
+require __DIR__.'/management.php';

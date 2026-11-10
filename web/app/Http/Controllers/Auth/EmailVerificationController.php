@@ -6,6 +6,8 @@ use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Services\AuditLogger;
 use App\Services\EmailVerificationCodeService;
+use App\Services\MailConfiguration;
+use App\Services\MailDeliveryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -24,6 +26,7 @@ class EmailVerificationController extends Controller
 
         return view('auth.verify-email', [
             'resendAvailableIn' => $codes->resendAvailableIn($request->user()),
+            'mailConfigured' => app(MailConfiguration::class)->current()['enabled'],
         ]);
     }
 
@@ -73,10 +76,13 @@ class EmailVerificationController extends Controller
             return redirect()->route('dashboard');
         }
 
-        if (! $codes->issue($request->user())) {
-            $wait = $codes->resendAvailableIn($request->user());
-
-            return back()->withErrors(['code' => "发送过于频繁，请 {$wait} 秒后再试。"]);
+        try {
+            if (! $codes->issue($request->user())) {
+                $wait = $codes->resendAvailableIn($request->user());
+                return back()->withErrors(['code' => "发送过于频繁，请 {$wait} 秒后再试。"]);
+            }
+        } catch (MailDeliveryException $error) {
+            return back()->withErrors(['code' => $error->getMessage()]);
         }
 
         return back()->with('status', '验证码已发送，请查收邮箱。');

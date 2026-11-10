@@ -1,0 +1,59 @@
+# Standalone production configuration: one container, four supervised processes.
+# docker compose -f compose.daemon.yaml --env-file .env.daemon up -d --build --wait
+name: visionsy-daemon
+services:
+  daemon:
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+      target: production
+    image: visionsy-daemon:${DAEMON_IMAGE_TAG:-local}
+    env_file:
+      - ${DAEMON_ENV_FILE:-.env.daemon}
+    environment:
+      LEGACY_ADMIN_ENABLED: "false"
+      DAEMON_NAME: ${DAEMON_NAME:-VisionSY daemon}
+      DASHBOARD_URL: ${DASHBOARD_URL:-}
+      MANAGEMENT_ALLOWED_ORIGINS: ${MANAGEMENT_ALLOWED_ORIGINS:-${DASHBOARD_URL:-}}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      SESSION_COOKIE: ${DAEMON_SESSION_COOKIE:-visionsy_daemon_session}
+      SERVER_NAME: ":80"
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: ${DB_DATABASE:-visionsy}
+      DB_USERNAME: ${DB_USERNAME:-visionsy}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_SOCKET: ""
+      MARIADB_DATABASE: ${DB_DATABASE:-visionsy}
+      MARIADB_USER: ${DB_USERNAME:-visionsy}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+      MARIADB_ROOT_HOST: localhost
+      MARIADB_INITDB_SKIP_TZINFO: "1"
+    ports:
+      - "${DAEMON_BIND_IP:-0.0.0.0}:${DAEMON_PORT:-8000}:80"
+    volumes:
+      - storage:/app/storage
+      - bootstrap_cache:/app/bootstrap/cache
+      - db_data:/var/lib/mysql
+      - ${DAM_HOST_MANAGED:-./data/media}:/data/visionsy/managed
+      - type: volume
+        source: storage
+        target: /app/public/storage
+        volume:
+          subpath: app/public
+          nocopy: true
+    restart: unless-stopped
+    # Workers finish before MariaDB shuts down. Match the queue job timeout.
+    stop_grace_period: 65m
+    networks:
+      - daemon_net
+volumes:
+  storage:
+  bootstrap_cache:
+  db_data:
+networks:
+  daemon_net:
+    driver: bridge

@@ -22,7 +22,12 @@ class PasswordResetController extends Controller
     {
         $request->validate(['email' => ['required', 'email']], [], ['email' => '邮箱']);
 
-        Password::sendResetLink($request->only('email'));
+        try {
+            app(\App\Services\MailConfiguration::class)->prepare();
+            Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $error) {
+            return back()->withErrors(['email' => '暂时无法发送重置邮件，请稍后重试或联系管理员。']);
+        }
 
         // 不暴露邮箱是否存在
         return back()->with('status', '如果该邮箱已注册，重置链接已发送，请查收。');

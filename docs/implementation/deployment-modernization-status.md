@@ -197,7 +197,7 @@ vite 服务 `command` 从 `["sh", "-c", "npm install --no-audit --no-fund && npm
 
 ```powershell
 # 部署 Docker Compose 目录以实际为准
-cd VisionSY_Private/deploy/docker
+cd VisionSY_Daemon/deploy/docker
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d
 ```
 
